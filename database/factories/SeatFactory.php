@@ -13,7 +13,7 @@ class SeatFactory extends Factory
             'room_id' => Room::factory(),
             'row_label' => $this->faker->randomElement(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']),
             'seat_number' => $this->faker->numberBetween(1, 20),
-            'type' => $this->faker->randomElement(['normal', 'vip']),
+            'type' => $this->faker->randomElement(['standard', 'vip']),
         ];
     }
 }

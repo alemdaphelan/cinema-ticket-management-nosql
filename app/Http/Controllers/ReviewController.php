@@ -4,172 +4,196 @@ namespace App\Http\Controllers;
 
 use App\Models\Movie;
 use App\Models\Order;
-use App\Models\Review;
+use App\Models\User;
+use App\Services\MongoReviewRepository;
+use App\Services\ReviewChangePublisher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
+use MongoDB\Driver\Exception\BulkWriteException;
 
 class ReviewController extends Controller
 {
-    /**
-     * Danh sách đánh giá của phim kèm số liệu thống kê chuẩn phong cách MoMo.
-     */
+    public function __construct(
+        private MongoReviewRepository $reviews,
+        private ReviewChangePublisher $publisher,
+    ) {}
+
     public function index(Request $request, int $movieId)
     {
-        $movie = Movie::findOrFail($movieId);
+        Movie::query()->findOrFail($movieId);
+        $validated = $request->validate([
+            'rating_filter' => 'nullable|in:all,9-10,7-8,under_7',
+            'page' => 'nullable|integer|min:1',
+        ]);
+        $filter = $validated['rating_filter'] ?? 'all';
+        $page = (int) ($validated['page'] ?? 1);
+        $paginator = $this->reviews->paginate($movieId, $filter, $page);
+        $summary = $this->reviews->summary($movieId);
 
-        // Lấy tất cả ratings để tính thống kê MoMo
-        $allReviews = Review::where('movie_id', $movieId)->select('id', 'rating', 'comment')->get();
-        $totalReviews = $allReviews->count();
+        $users = User::query()
+            ->whereIn('id', collect($paginator['data'])->pluck('user_id')->unique()->all())
+            ->get(['id', 'name', 'avatar'])
+            ->keyBy('id');
+        $items = collect($paginator['data'])->map(function (array $review) use ($users) {
+            $user = $users->get($review['user_id']);
+            $review['user'] = $user?->only(['id', 'name', 'avatar']);
 
-        $avgRating = $totalReviews > 0 ? round($allReviews->avg('rating'), 1) : 0;
-
-        // Tính phân bổ điểm số theo phong cách MoMo
-        $count9to10 = $allReviews->whereBetween('rating', [9, 10])->count();
-        $count7to8 = $allReviews->whereBetween('rating', [7, 8])->count();
-        $count5to6 = $allReviews->whereBetween('rating', [5, 6])->count();
-        $count3to4 = $allReviews->whereBetween('rating', [3, 4])->count();
-        $count1to2 = $allReviews->whereBetween('rating', [1, 2])->count();
-
-        $pct9to10 = $totalReviews > 0 ? round(($count9to10 / $totalReviews) * 100) : 0;
-        $pct7to8 = $totalReviews > 0 ? round(($count7to8 / $totalReviews) * 100) : 0;
-        $pct5to6 = $totalReviews > 0 ? round(($count5to6 / $totalReviews) * 100) : 0;
-        $pct3to4 = $totalReviews > 0 ? round(($count3to4 / $totalReviews) * 100) : 0;
-        $pct1to2 = $totalReviews > 0 ? round(($count1to2 / $totalReviews) * 100) : 0;
-
-        $satisfactionRate = $totalReviews > 0 ? round((($count9to10 + $count7to8) / $totalReviews) * 100) : 100;
-
-        // Điểm nhấn cảm xúc MoMo tags
-        $momoTags = [
-            ['tag' => 'Diễn xuất đỉnh cao', 'percentage' => min(98, max(85, $satisfactionRate + 2))],
-            ['tag' => 'Kịch bản lôi cuốn', 'percentage' => min(96, max(82, $satisfactionRate - 1))],
-            ['tag' => 'Kỹ xảo mãn nhãn', 'percentage' => min(99, max(88, $satisfactionRate + 3))],
-            ['tag' => 'Âm thanh sống động', 'percentage' => min(97, max(80, $satisfactionRate))],
-            ['tag' => 'Cái kết ấn tượng', 'percentage' => min(95, max(75, $satisfactionRate - 4))],
-        ];
-
-        // Lọc danh sách đánh giá
-        $query = Review::where('movie_id', $movieId)
-            ->with('user:id,name,avatar');
-
-        $filter = $request->input('rating_filter', 'all');
-        if ($filter === '9-10') {
-            $query->whereBetween('rating', [9, 10]);
-        } elseif ($filter === '7-8') {
-            $query->whereBetween('rating', [7, 8]);
-        } elseif ($filter === 'under_7') {
-            $query->where('rating', '<', 7);
-        }
-
-        $reviews = $query->orderBy('created_at', 'desc')->paginate(10);
-
-        // Đính kèm thông tin thời điểm xem phim (suất chiếu) của từng người đánh giá
-        $items = collect($reviews->items())->map(function ($review) use ($movieId) {
-            $order = Order::where('user_id', $review->user_id)
-                ->whereIn('status', ['paid', 'completed'])
-                ->whereHas('show', function ($q) use ($movieId) {
-                    $q->where('movie_id', $movieId);
-                })
-                ->with(['show' => function ($q) {
-                    $q->select('id', 'movie_id', 'start_time', 'end_time');
-                }])
-                ->latest('id')
-                ->first();
-
-            $watchedAt = $order && $order->show ? $order->show->start_time : $review->created_at;
-            $reviewArray = $review->toArray();
-            $reviewArray['watched_at'] = $watchedAt;
-            return $reviewArray;
-        });
+            return $review;
+        })->values();
 
         return response()->json([
-            'summary' => [
-                'average_rating' => $avgRating,
-                'total_reviews' => $totalReviews,
-                'satisfaction_rate' => $satisfactionRate,
-                'breakdown' => [
-                    'stars_9_10' => ['count' => $count9to10, 'percentage' => $pct9to10],
-                    'stars_7_8' => ['count' => $count7to8, 'percentage' => $pct7to8],
-                    'stars_5_6' => ['count' => $count5to6, 'percentage' => $pct5to6],
-                    'stars_3_4' => ['count' => $count3to4, 'percentage' => $pct3to4],
-                    'stars_1_2' => ['count' => $count1to2, 'percentage' => $pct1to2],
-                ],
-                'top_tags' => $momoTags,
-            ],
+            'summary' => $this->summaryPayload($summary),
             'data' => $items,
-            'current_page' => $reviews->currentPage(),
-            'last_page' => $reviews->lastPage(),
-            'total' => $reviews->total(),
+            'current_page' => $paginator['current_page'],
+            'last_page' => $paginator['last_page'],
+            'total' => $paginator['total'],
         ]);
     }
 
-    /**
-     * Thêm đánh giá cho phim.
-     * Chỉ user đã đặt vé và suất chiếu đã qua mới được đánh giá.
-     */
     public function store(Request $request, int $movieId)
     {
-        $movie = Movie::findOrFail($movieId);
+        Movie::query()->findOrFail($movieId);
         $user = Auth::user() ?? auth('sanctum')->user();
-
-        if (!$user) {
-            return response()->json([
-                'message' => 'Vui lòng đăng nhập để đánh giá phim.'
-            ], 401);
+        if (! $user) {
+            return response()->json(['message' => 'Vui lòng đăng nhập để đánh giá phim.'], 401);
         }
 
-        // Kiểm tra user đã đánh giá phim này chưa
-        $existingReview = Review::where('user_id', $user->id)
-            ->where('movie_id', $movieId)
-            ->first();
-
-        if ($existingReview) {
-            return response()->json([
-                'message' => 'Bạn đã đánh giá phim này rồi.'
-            ], 422);
+        if ($this->reviews->exists($movieId, (int) $user->id)) {
+            return response()->json(['message' => 'Bạn đã đánh giá phim này rồi.'], 422);
         }
 
-        // Kiểm tra user đã đặt vé cho phim này và suất chiếu đã qua
-        $hasWatched = Order::where('user_id', $user->id)
+        $order = Order::query()
+            ->where('user_id', $user->id)
             ->whereIn('status', ['paid', 'completed'])
-            ->whereHas('show', function ($query) use ($movieId) {
-                $query->where('movie_id', $movieId)
-                      ->where('start_time', '<', now());
-            })
-            ->exists();
-
-        if (!$hasWatched) {
+            ->whereHas('show', fn ($query) => $query->where('movie_id', $movieId)->where('start_time', '<', now()))
+            ->with('show:id,movie_id,start_time')
+            ->latest('id')
+            ->first();
+        if (! $order) {
             return response()->json([
-                'message' => 'Chỉ khán giả đã mua vé và xem phim xong tại rạp mới có quyền đánh giá phim này.'
+                'message' => 'Chỉ khán giả đã mua vé và xem phim xong tại rạp mới có quyền đánh giá phim này.',
             ], 403);
         }
 
-        $validated = $request->validate([
-            'rating' => 'required|integer|min:1|max:10',
-            'comment' => 'nullable|string|max:1000',
-        ], [
-            'rating.required' => 'Vui lòng chọn điểm đánh giá',
-            'rating.min' => 'Điểm đánh giá tối thiểu là 1',
-            'rating.max' => 'Điểm đánh giá tối đa là 10',
-            'comment.max' => 'Bình luận không được vượt quá 1000 ký tự',
-        ]);
+        $validated = $request->validate($this->rules(requiredRating: true), $this->messages());
+        try {
+            $review = $this->reviews->create([
+                'user_id' => (int) $user->id,
+                'movie_id' => $movieId,
+                'order_id' => (int) $order->id,
+                'rating' => $validated['rating'],
+                'content' => $validated['comment'] ?? null,
+                'tags' => $validated['tags'] ?? [],
+                'watched_at' => $order->show?->start_time,
+            ]);
+        } catch (BulkWriteException) {
+            return response()->json(['message' => 'Bạn đã đánh giá phim này rồi.'], 422);
+        }
 
-        $review = Review::create([
-            'user_id' => $user->id,
-            'movie_id' => $movieId,
-            'rating' => $validated['rating'],
-            'comment' => $validated['comment'] ?? null,
-        ]);
-
-        $review->load('user:id,name,avatar');
-
-        // Xóa cache phim để dữ liệu trung bình được cập nhật tức thì
-        Cache::forget("movie_detail_{$movieId}");
-        Cache::flush();
+        $review['user'] = $user->only(['id', 'name', 'avatar']);
+        $this->publisher->publish('created', $review);
 
         return response()->json([
             'message' => 'Đánh giá thành công! Cảm ơn bạn đã chia sẻ cảm nhận.',
             'data' => $review,
         ], 201);
+    }
+
+    public function update(Request $request, int $movieId, string $reviewId)
+    {
+        $user = Auth::user() ?? auth('sanctum')->user();
+        $review = $this->reviews->find($reviewId);
+        if (! $review || (int) $review['movie_id'] !== $movieId) {
+            return response()->json(['message' => 'Không tìm thấy đánh giá.'], 404);
+        }
+        if (! $user || (int) $review['user_id'] !== (int) $user->id) {
+            return response()->json(['message' => 'Bạn không có quyền sửa đánh giá này.'], 403);
+        }
+
+        $validated = $request->validate($this->rules(requiredRating: false), $this->messages());
+        if ($validated === []) {
+            return response()->json(['message' => 'Không có nội dung cần cập nhật.'], 422);
+        }
+        $attributes = [];
+        if (array_key_exists('rating', $validated)) {
+            $attributes['rating'] = $validated['rating'];
+        }
+        if (array_key_exists('comment', $validated)) {
+            $attributes['content'] = $validated['comment'];
+        }
+        if (array_key_exists('tags', $validated)) {
+            $attributes['tags'] = $validated['tags'];
+        }
+        $updated = $this->reviews->updateOwned($reviewId, $movieId, (int) $user->id, $attributes);
+        $this->publisher->publish('updated', $updated);
+
+        return response()->json(['message' => 'Đánh giá đã được cập nhật.', 'data' => $updated]);
+    }
+
+    public function destroy(int $movieId, string $reviewId)
+    {
+        $user = Auth::user() ?? auth('sanctum')->user();
+        $review = $this->reviews->find($reviewId);
+        if (! $review || (int) $review['movie_id'] !== $movieId) {
+            return response()->json(['message' => 'Không tìm thấy đánh giá.'], 404);
+        }
+        if (! $user || (int) $review['user_id'] !== (int) $user->id) {
+            return response()->json(['message' => 'Bạn không có quyền xóa đánh giá này.'], 403);
+        }
+
+        $deleted = $this->reviews->deleteOwned($reviewId, $movieId, (int) $user->id);
+        $this->publisher->publish('deleted', $deleted);
+
+        return response()->json(['message' => 'Đánh giá đã được xóa.']);
+    }
+
+    /** @return array<string, mixed> */
+    private function rules(bool $requiredRating): array
+    {
+        return [
+            'rating' => [$requiredRating ? 'required' : 'sometimes', 'integer', 'min:1', 'max:10'],
+            'comment' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'tags' => ['sometimes', 'array', 'max:5'],
+            'tags.*' => ['string', 'max:50'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    private function messages(): array
+    {
+        return [
+            'rating.required' => 'Vui lòng chọn điểm đánh giá',
+            'rating.min' => 'Điểm đánh giá tối thiểu là 1',
+            'rating.max' => 'Điểm đánh giá tối đa là 10',
+            'comment.max' => 'Bình luận không được vượt quá 1000 ký tự',
+        ];
+    }
+
+    /** @param array<string, int|float> $summary */
+    private function summaryPayload(array $summary): array
+    {
+        $total = (int) $summary['total_reviews'];
+        $percentage = fn (string $key) => $total > 0 ? (int) round(((int) $summary[$key] / $total) * 100) : 0;
+        $satisfaction = (int) $summary['satisfaction_rate'];
+
+        return [
+            'average_rating' => $summary['average_rating'],
+            'total_reviews' => $total,
+            'satisfaction_rate' => $satisfaction,
+            'breakdown' => [
+                'stars_9_10' => ['count' => $summary['count_9_10'], 'percentage' => $percentage('count_9_10')],
+                'stars_7_8' => ['count' => $summary['count_7_8'], 'percentage' => $percentage('count_7_8')],
+                'stars_5_6' => ['count' => $summary['count_5_6'], 'percentage' => $percentage('count_5_6')],
+                'stars_3_4' => ['count' => $summary['count_3_4'], 'percentage' => $percentage('count_3_4')],
+                'stars_1_2' => ['count' => $summary['count_1_2'], 'percentage' => $percentage('count_1_2')],
+            ],
+            'top_tags' => [
+                ['tag' => 'Diễn xuất đỉnh cao', 'percentage' => min(98, max(85, $satisfaction + 2))],
+                ['tag' => 'Kịch bản lôi cuốn', 'percentage' => min(96, max(82, $satisfaction - 1))],
+                ['tag' => 'Kỹ xảo mãn nhãn', 'percentage' => min(99, max(88, $satisfaction + 3))],
+                ['tag' => 'Âm thanh sống động', 'percentage' => min(97, max(80, $satisfaction))],
+                ['tag' => 'Cái kết ấn tượng', 'percentage' => min(95, max(75, $satisfaction - 4))],
+            ],
+        ];
     }
 }

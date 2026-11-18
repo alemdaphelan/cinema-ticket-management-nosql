@@ -7,42 +7,52 @@ use App\Models\OrderSeat;
 use App\Models\Room;
 use App\Models\Seat;
 use App\Models\Show;
+use App\Services\RedisQueryCache;
+use App\Services\RedisSeatHoldService;
 use App\Services\ShowSchedulingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 class ShowController extends Controller
 {
+    public function __construct(
+        private RedisQueryCache $cache,
+        private RedisSeatHoldService $seatHolds,
+    ) {}
+
     /**
      * [Public] Lấy danh sách suất chiếu theo phim và ngày.
      */
     public function publicIndex(Request $request)
     {
-        $movieId = $request->input('movie_id', 'all');
-        $date = $request->input('date', 'all');
-        $cacheKey = "shows_index_{$movieId}_{$date}";
+        $filters = $request->validate([
+            'movie_id' => 'nullable|integer|exists:movies,id',
+            'date' => 'nullable|date_format:Y-m-d',
+        ]);
+        $movieId = isset($filters['movie_id']) ? (int) $filters['movie_id'] : null;
+        $date = $filters['date'] ?? null;
+        $cacheKey = hash('sha256', json_encode([$movieId, $date], JSON_THROW_ON_ERROR));
 
-        $shows = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($request) {
+        $cached = $this->cache->remember('shows:list', $cacheKey, (int) config('nosql.redis.show_ttl_seconds', 300), function () use ($movieId, $date) {
             $query = Show::with(['movie', 'room']);
 
-            if ($request->has('movie_id')) {
-                $query->where('movie_id', $request->input('movie_id'));
+            if ($movieId !== null) {
+                $query->where('movie_id', $movieId);
             }
 
-            if ($request->has('date')) {
-                $query->whereDate('start_time', $request->input('date'));
+            if ($date !== null) {
+                $query->whereDate('start_time', $date);
             } else {
                 $query->where('start_time', '>=', now());
             }
 
-            return $query->orderBy('start_time', 'asc')->get()->toArray();
+            return $query->orderBy('start_time')->orderBy('id')->get()->toArray();
         });
 
-        return response()->json(['data' => $shows]);
+        return response()->json(['data' => $cached['value']])->header('X-Cache', strtoupper($cached['status']));
     }
 
     /**
@@ -53,6 +63,8 @@ class ShowController extends Controller
         $show = Show::with(['room', 'movie'])->findOrFail($id);
         $seats = Seat::where('room_id', $show->room_id)->orderBy('row_label')->orderBy('seat_number')->get();
         $currentUserId = auth('sanctum')->id() ?? auth()->id();
+        $redisOwners = $this->seatHolds->owners($id, $seats->pluck('id')->map(fn ($seatId): int => (int) $seatId)->all());
+        $currentOwner = $currentUserId ? $this->seatHolds->ownerForUser((int) $currentUserId) : null;
 
         // Lấy danh sách ghế đang giữ của chính user này cho suất chiếu này
         $userHoldingSeatIds = [];
@@ -79,6 +91,16 @@ class ShowController extends Controller
                         });
                 });
         })->pluck('seat_id')->toArray();
+
+        foreach ($redisOwners as $seatId => $owner) {
+            if ($currentOwner !== null && $owner === $currentOwner) {
+                $userHoldingSeatIds[] = $seatId;
+            } else {
+                $unavailableSeatIds[] = $seatId;
+            }
+        }
+        $userHoldingSeatIds = array_values(array_unique(array_map('intval', $userHoldingSeatIds)));
+        $unavailableSeatIds = array_values(array_unique(array_map('intval', $unavailableSeatIds)));
 
         $seatsData = $seats->map(function ($seat) use ($unavailableSeatIds, $userHoldingSeatIds) {
             $status = 'available';
@@ -192,6 +214,7 @@ class ShowController extends Controller
         ]);
 
         $show = $scheduling->save($validated)->load(['movie', 'room']);
+        $this->cache->invalidate(['shows:list']);
 
         return response()->json(['data' => $show, 'message' => 'Tạo suất chiếu thành công!'], 201);
     }
@@ -206,6 +229,7 @@ class ShowController extends Controller
         ]);
 
         $show = $scheduling->save($validated, $id)->load(['movie', 'room']);
+        $this->cache->invalidate(['shows:list']);
 
         return response()->json(['data' => $show, 'message' => 'Cập nhật suất chiếu thành công!']);
     }
@@ -266,6 +290,7 @@ class ShowController extends Controller
     {
         $show = Show::findOrFail($id);
         $show->delete();
+        $this->cache->invalidate(['shows:list']);
 
         return response()->json(null, 204);
     }

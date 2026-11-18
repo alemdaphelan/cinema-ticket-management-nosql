@@ -1,0 +1,84 @@
+CREATE ROLE IF NOT EXISTS __APP_USERNAME__
+WITH PASSWORD = '__APP_PASSWORD__'
+AND LOGIN = true
+AND SUPERUSER = false;
+
+CREATE KEYSPACE IF NOT EXISTS __KEYSPACE__
+WITH replication = {'class': 'NetworkTopologyStrategy', 'datacenter1': 1};
+
+ALTER KEYSPACE __KEYSPACE__
+WITH replication = {'class': 'NetworkTopologyStrategy', 'datacenter1': 1};
+
+GRANT ALL PERMISSIONS ON KEYSPACE __KEYSPACE__ TO __APP_USERNAME__;
+
+CREATE TABLE IF NOT EXISTS __KEYSPACE__.user_activity_by_month (
+    user_id bigint,
+    month text,
+    occurred_at timestamp,
+    event_id timeuuid,
+    event_type text,
+    movie_id bigint,
+    order_id bigint,
+    metadata text,
+    PRIMARY KEY ((user_id, month), occurred_at, event_id)
+) WITH CLUSTERING ORDER BY (occurred_at DESC, event_id DESC)
+  AND default_time_to_live = 7776000
+  AND compaction = {'class': 'TimeWindowCompactionStrategy', 'compaction_window_unit': 'DAYS', 'compaction_window_size': '1'};
+
+CREATE TABLE IF NOT EXISTS __KEYSPACE__.movie_events_by_day (
+    movie_id bigint,
+    event_date date,
+    occurred_at timestamp,
+    event_id timeuuid,
+    event_type text,
+    user_id bigint,
+    order_id bigint,
+    metadata text,
+    PRIMARY KEY ((movie_id, event_date), occurred_at, event_id)
+) WITH CLUSTERING ORDER BY (occurred_at DESC, event_id DESC)
+  AND default_time_to_live = 7776000
+  AND compaction = {'class': 'TimeWindowCompactionStrategy', 'compaction_window_unit': 'DAYS', 'compaction_window_size': '1'};
+
+CREATE TABLE IF NOT EXISTS __KEYSPACE__.audit_events_by_day (
+    actor_type text,
+    event_date date,
+    occurred_at timestamp,
+    event_id timeuuid,
+    actor_id bigint,
+    event_type text,
+    aggregate_type text,
+    aggregate_id text,
+    metadata text,
+    PRIMARY KEY ((actor_type, event_date), occurred_at, event_id)
+) WITH CLUSTERING ORDER BY (occurred_at DESC, event_id DESC)
+  AND default_time_to_live = 15552000
+  AND compaction = {'class': 'TimeWindowCompactionStrategy', 'compaction_window_unit': 'DAYS', 'compaction_window_size': '1'};
+
+ALTER TABLE __KEYSPACE__.user_activity_by_month
+WITH default_time_to_live = 7776000
+AND compaction = {'class': 'TimeWindowCompactionStrategy', 'compaction_window_unit': 'DAYS', 'compaction_window_size': '1'};
+
+ALTER TABLE __KEYSPACE__.movie_events_by_day
+WITH default_time_to_live = 7776000
+AND compaction = {'class': 'TimeWindowCompactionStrategy', 'compaction_window_unit': 'DAYS', 'compaction_window_size': '1'};
+
+ALTER TABLE __KEYSPACE__.audit_events_by_day
+WITH default_time_to_live = 15552000
+AND compaction = {'class': 'TimeWindowCompactionStrategy', 'compaction_window_unit': 'DAYS', 'compaction_window_size': '1'};
+
+INSERT INTO __KEYSPACE__.user_activity_by_month
+    (user_id, month, occurred_at, event_id, event_type, movie_id, order_id, metadata)
+VALUES
+    (1, '2026-11', '2026-11-17T00:00:00Z', minTimeuuid('2026-11-17T00:00:00Z'), 'PHASE2_SEED', 1, null, '{"source":"cassandra-init"}');
+
+INSERT INTO __KEYSPACE__.movie_events_by_day
+    (movie_id, event_date, occurred_at, event_id, event_type, user_id, order_id, metadata)
+VALUES
+    (1, '2026-11-17', '2026-11-17T00:00:00Z', minTimeuuid('2026-11-17T00:00:00Z'), 'PHASE2_SEED', 1, null, '{"source":"cassandra-init"}');
+
+INSERT INTO __KEYSPACE__.audit_events_by_day
+    (actor_type, event_date, occurred_at, event_id, actor_id, event_type, aggregate_type, aggregate_id, metadata)
+VALUES
+    ('system', '2026-11-17', '2026-11-17T00:00:00Z', minTimeuuid('2026-11-17T00:00:00Z'), null, 'PHASE2_SEED', 'infrastructure', 'phase-2', '{"source":"cassandra-init"}');
+
+ALTER ROLE cassandra WITH PASSWORD = '__ADMIN_PASSWORD__';

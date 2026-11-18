@@ -10,3 +10,5 @@ Artisan::command('inspire', function () {
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('app:update-demo-shows')->daily();
+Schedule::command('nosql:neo4j-sync')->hourly()->withoutOverlapping();
+Schedule::command('nosql:outbox-replay')->everyMinute()->withoutOverlapping();

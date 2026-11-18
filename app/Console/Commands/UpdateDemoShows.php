@@ -5,18 +5,18 @@ namespace App\Console\Commands;
 use App\Models\Movie;
 use App\Models\Room;
 use App\Models\Show;
+use App\Services\RedisQueryCache;
 use App\Services\ShowSchedulingService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 #[Signature('app:update-demo-shows')]
 #[Description('Bổ sung lịch chiếu demo cho các ngày còn trống')]
 class UpdateDemoShows extends Command
 {
-    public function handle(ShowSchedulingService $scheduling): int
+    public function handle(ShowSchedulingService $scheduling, RedisQueryCache $cache): int
     {
         $today = now(ShowSchedulingService::TIMEZONE)->startOfDay();
         $movies = Movie::where('status', 'showing')->get();
@@ -62,7 +62,7 @@ class UpdateDemoShows extends Command
         }
 
         if ($created > 0) {
-            Cache::flush();
+            $cache->invalidate(['shows:list']);
         }
 
         $this->info("Đã bổ sung {$created} suất chiếu demo.");

@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
+    libssl-dev \
+    libsasl2-dev \
     zip \
     unzip \
     libzip-dev
@@ -13,6 +15,9 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+
+RUN pecl install mongodb-2.5.7 \
+    && docker-php-ext-enable mongodb
 
 RUN a2enmod rewrite
 
@@ -25,6 +30,13 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 COPY . /var/www/html
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --prefer-dist \
+    --optimize-autoloader
 
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 

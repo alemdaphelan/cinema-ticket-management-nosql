@@ -14,6 +14,15 @@ abstract class TestCase extends BaseTestCase
         $_SERVER['DB_CONNECTION'] = 'sqlite';
         $_SERVER['DB_DATABASE'] = ':memory:';
         $_SERVER['DB_URL'] = '';
+        $_SERVER['CACHE_STORE'] = 'array';
+        $_SERVER['QUEUE_CONNECTION'] = 'sync';
+        $_SERVER['SESSION_DRIVER'] = 'array';
+        $_SERVER['NOSQL_REDIS_CACHE_STORE'] = 'array';
+        $_SERVER['NOSQL_REDIS_SEAT_HOLD_STORE'] = 'array';
+        $_SERVER['NOSQL_REDIS_LEADERBOARD_STORE'] = 'array';
+        $_SERVER['NOSQL_MONGODB_DRIVER'] = 'array';
+        $_SERVER['NOSQL_CASSANDRA_DRIVER'] = 'array';
+        $_SERVER['NOSQL_NEO4J_DRIVER'] = 'array';
 
         $app = parent::createApplication();
         $config = $app->make('config');

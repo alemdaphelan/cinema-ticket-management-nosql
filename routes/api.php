@@ -1,15 +1,20 @@
 <?php
 
+use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\MovieController;
+use App\Http\Controllers\MovieLeaderboardController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\RecommendationController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ShowController;
 use App\Http\Controllers\SnackController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Middleware\RoleMiddleware;
+use App\Models\Movie;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -32,21 +37,21 @@ Route::prefix('auth')->group(function () {
 // === Public (không cần login) ===
 Route::get('/test-db', function () {
     $times = [];
-    
+
     $times['bootstrap'] = defined('LARAVEL_START') ? microtime(true) - LARAVEL_START : 0;
 
     $start = microtime(true);
-    \Illuminate\Support\Facades\DB::connection()->getPdo();
+    DB::connection()->getPdo();
     $times['connect'] = microtime(true) - $start;
 
     $start = microtime(true);
-    $count = \App\Models\Movie::count();
+    $count = Movie::count();
     $times['count'] = microtime(true) - $start;
-    
+
     $start = microtime(true);
-    $movies = \App\Models\Movie::query()->whereIn('status', ['showing', 'coming_soon'])->orderBy('created_at', 'desc')->paginate(12);
+    $movies = Movie::query()->whereIn('status', ['showing', 'coming_soon'])->orderBy('created_at', 'desc')->paginate(12);
     $times['paginate'] = microtime(true) - $start;
-    
+
     $start = microtime(true);
     $json = json_encode($movies);
     $times['json'] = microtime(true) - $start;
@@ -56,7 +61,9 @@ Route::get('/test-db', function () {
     return response()->json(['times' => $times, 'count' => $count]);
 });
 Route::get('/movies', [MovieController::class, 'publicIndex']);
+Route::get('/movies/leaderboard', MovieLeaderboardController::class);
 Route::get('/movies/{id}', [MovieController::class, 'publicShow']);
+Route::get('/movies/{movieId}/similar', [RecommendationController::class, 'similar']);
 Route::get('/movies/{id}/reviews', [ReviewController::class, 'index']);
 Route::get('/shows', [ShowController::class, 'publicIndex']);
 Route::get('/shows/{id}/seats', [ShowController::class, 'getSeats']);
@@ -64,6 +71,8 @@ Route::get('/snacks', [SnackController::class, 'publicIndex']);
 
 // === Protected routes (Requires Sanctum token) ===
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/recommendations', [RecommendationController::class, 'personalized']);
+    Route::get('/activity/history', [ActivityController::class, 'history']);
     // Booking
     Route::prefix('orders')->group(function () {
         Route::post('/hold', [BookingController::class, 'holdSeats']);
@@ -79,9 +88,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Reviews
     Route::post('/movies/{id}/reviews', [ReviewController::class, 'store']);
+    Route::patch('/movies/{movieId}/reviews/{reviewId}', [ReviewController::class, 'update']);
+    Route::delete('/movies/{movieId}/reviews/{reviewId}', [ReviewController::class, 'destroy']);
 
     // Staff
-    Route::middleware([RoleMiddleware::class . ':staff,admin'])->prefix('staff')->group(function () {
+    Route::middleware([RoleMiddleware::class.':staff,admin'])->prefix('staff')->group(function () {
         Route::post('/tickets/scan', [StaffController::class, 'scanTicket']);
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/export', [OrderController::class, 'exportExcel']);
@@ -90,7 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Admin
-    Route::middleware([RoleMiddleware::class . ':admin'])->prefix('admin')->group(function () {
+    Route::middleware([RoleMiddleware::class.':admin'])->prefix('admin')->group(function () {
         // Movies
         Route::get('/movies', [MovieController::class, 'index']);
         Route::post('/movies', [MovieController::class, 'store']);

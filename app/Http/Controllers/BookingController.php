@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ActivityOccurred;
 use App\Jobs\ReleaseSeatJob;
 use App\Models\Order;
 use App\Models\OrderSeat;
@@ -11,17 +12,25 @@ use App\Models\Snack;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Services\BookingHoldService;
+use App\Services\RedisMovieLeaderboard;
+use App\Services\RedisSeatHoldService;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 class BookingController extends Controller
 {
     private const PAYMENT_METHOD_RULE = 'required|in:vnpay,momo';
 
-    public function __construct(private BookingHoldService $holds) {}
+    public function __construct(
+        private BookingHoldService $holds,
+        private RedisSeatHoldService $seatHolds,
+        private RedisMovieLeaderboard $leaderboard,
+    ) {}
 
     /**
      * Bước 1: Chọn ghế & Giữ ghế (10 phút).
@@ -36,98 +45,172 @@ class BookingController extends Controller
         ]);
 
         $show = Show::findOrFail($validated['show_id']);
-        $seatIds = $validated['seat_ids'];
+        $seatIds = array_values(array_map('intval', $validated['seat_ids']));
+        sort($seatIds);
+        $owner = $this->seatHolds->ownerForUser((int) $request->user()->id);
+        $acquiredSeatIds = [];
+        $previousSeatIds = [];
 
-        $result = $this->holds->withUser($request->user()->id, function (User $user) use ($validated, $show, $seatIds): Order|JsonResponse {
-            if ($this->holds->isBlocked($user)) {
-                return $this->blockedResponse($user);
-            }
-
-            $orders = $user->orders()->where('show_id', $show->id)->lockForUpdate();
-
-            if (isset($validated['order_id'])) {
-                $existingOrder = $orders->findOrFail($validated['order_id']);
-                if ($failure = $this->pendingOrderFailure($user, $existingOrder)) {
-                    return $failure;
+        try {
+            $result = $this->holds->withUser($request->user()->id, function (User $user) use (
+                $validated,
+                $show,
+                $seatIds,
+                $owner,
+                &$acquiredSeatIds,
+                &$previousSeatIds,
+            ): array|JsonResponse {
+                if ($this->holds->isBlocked($user)) {
+                    return $this->blockedResponse($user);
                 }
-            } else {
-                $existingOrder = $orders->where('status', 'pending')
-                    ->where('hold_expires_at', '>', now())
-                    ->latest()
-                    ->first();
-            }
 
-            $seats = Seat::where('room_id', $show->room_id)
-                ->whereIn('id', $seatIds)
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get();
+                $orders = $user->orders()->where('show_id', $show->id)->lockForUpdate();
 
-            if ($seats->count() !== count($seatIds)) {
-                return response()->json(['message' => 'Một hoặc nhiều ghế không thuộc suất chiếu này.'], 409);
-            }
+                if (isset($validated['order_id'])) {
+                    $existingOrder = $orders->findOrFail($validated['order_id']);
+                    if ($failure = $this->pendingOrderFailure($user, $existingOrder)) {
+                        return $failure;
+                    }
+                } else {
+                    $existingOrder = $orders->where('status', 'pending')
+                        ->where('hold_expires_at', '>', now())
+                        ->latest()
+                        ->first();
+                }
 
-            $alreadyBooked = OrderSeat::whereIn('seat_id', $seatIds)
-                ->whereHas('order', function ($query) use ($show, $user) {
-                    $query->where('show_id', $show->id)->where(function ($orders) use ($user) {
-                        $orders->whereIn('status', ['paid', 'completed'])
-                            ->orWhere(function ($pending) use ($user) {
-                                $pending->where('status', 'pending')
-                                    ->where('hold_expires_at', '>', now())
-                                    ->where('user_id', '!=', $user->id);
-                            });
-                    });
-                })->exists();
+                $previousSeatIds = $existingOrder
+                    ? $existingOrder->seats()->pluck('seat_id')->map(fn ($seatId): int => (int) $seatId)->all()
+                    : [];
 
-            if ($alreadyBooked) {
-                return response()->json([
-                    'message' => 'Một hoặc nhiều ghế bạn chọn vừa có người khác giữ chỗ hoặc đặt mua. Vui lòng chọn ghế khác!',
-                ], 409);
-            }
+                $seats = Seat::where('room_id', $show->room_id)
+                    ->whereIn('id', $seatIds)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
 
-            // Keep one active hold. Editing the same show keeps its order and deadline.
-            $user->orders()->where('status', 'pending')
-                ->when($existingOrder, fn ($orders) => $orders->whereKeyNot($existingOrder->id))
-                ->update([
+                if ($seats->count() !== count($seatIds)) {
+                    return response()->json(['message' => 'Một hoặc nhiều ghế không thuộc suất chiếu này.'], 409);
+                }
+
+                $alreadyBooked = OrderSeat::whereIn('seat_id', $seatIds)
+                    ->whereHas('order', function ($query) use ($show, $user) {
+                        $query->where('show_id', $show->id)->where(function ($orders) use ($user) {
+                            $orders->whereIn('status', ['paid', 'completed'])
+                                ->orWhere(function ($pending) use ($user) {
+                                    $pending->where('status', 'pending')
+                                        ->where('hold_expires_at', '>', now())
+                                        ->where('user_id', '!=', $user->id);
+                                });
+                        });
+                    })->exists();
+
+                if ($alreadyBooked) {
+                    return response()->json([
+                        'message' => 'Một hoặc nhiều ghế bạn chọn vừa có người khác giữ chỗ hoặc đặt mua. Vui lòng chọn ghế khác!',
+                    ], 409);
+                }
+
+                $ttlSeconds = $existingOrder?->hold_expires_at
+                    ? max(1, (int) now()->diffInSeconds($existingOrder->hold_expires_at, false))
+                    : (int) config('nosql.redis.seat_hold_ttl_seconds', 600);
+
+                try {
+                    $reservation = $this->seatHolds->acquire((int) $show->id, $seatIds, $owner, $ttlSeconds);
+                } catch (Throwable $exception) {
+                    Log::error('Redis seat hold acquisition failed.', ['exception' => $exception::class]);
+
+                    return response()->json([
+                        'code' => 'seat_hold_store_unavailable',
+                        'message' => 'Hệ thống giữ ghế đang tạm thời không khả dụng. Vui lòng thử lại.',
+                    ], 503);
+                }
+
+                if (! $reservation['acquired']) {
+                    return response()->json([
+                        'code' => 'seat_hold_conflict',
+                        'message' => 'Một hoặc nhiều ghế bạn chọn vừa có người khác giữ. Vui lòng chọn ghế khác.',
+                        'data' => ['conflict_seat_id' => $reservation['conflict_seat_id']],
+                    ], 409);
+                }
+                $acquiredSeatIds = $seatIds;
+
+                $otherOrders = $user->orders()
+                    ->with('seats:id,order_id,seat_id')
+                    ->where('status', 'pending')
+                    ->when($existingOrder, fn ($orders) => $orders->whereKeyNot($existingOrder->id))
+                    ->get(['id', 'show_id']);
+                $user->orders()->whereKey($otherOrders->modelKeys())->update([
                     'status' => 'cancelled',
                     'qr_code' => 'reason:change_seats',
                 ]);
 
-            $order = $existingOrder ?? $user->orders()->create([
-                'show_id' => $show->id,
-                'status' => 'pending',
-                'hold_expires_at' => now()->addMinutes(10),
-                'total_amount' => 0,
-            ]);
+                $order = $existingOrder ?? $user->orders()->create([
+                    'show_id' => $show->id,
+                    'status' => 'pending',
+                    'hold_expires_at' => now()->addSeconds($ttlSeconds),
+                    'total_amount' => 0,
+                ]);
 
-            $heldSeats = $order->seats()->pluck('seat_id');
-            $order->seats()->whereNotIn('seat_id', $seatIds)->delete();
-            foreach ($seats as $seat) {
-                if (! $heldSeats->contains($seat->id)) {
-                    $seatPrice = $seat->type === 'vip' ? $show->price * 1.5 : $show->price;
-                    $order->seats()->create(['seat_id' => $seat->id, 'price' => $seatPrice]);
+                $heldSeats = $order->seats()->pluck('seat_id');
+                $order->seats()->whereNotIn('seat_id', $seatIds)->delete();
+                foreach ($seats as $seat) {
+                    if (! $heldSeats->contains($seat->id)) {
+                        $seatPrice = $seat->type === 'vip' ? $show->price * 1.5 : $show->price;
+                        $order->seats()->create(['seat_id' => $seat->id, 'price' => $seatPrice]);
+                    }
+                }
+
+                $this->updateOrderTotal($order, $order->seats()->sum('price') + $order->snacks()->sum('price'));
+
+                return [
+                    'order' => $order,
+                    'release' => collect($otherOrders)->map(fn (Order $other): array => [
+                        'show_id' => (int) $other->show_id,
+                        'seat_ids' => $other->seats->pluck('seat_id')->map(fn ($seatId): int => (int) $seatId)->all(),
+                    ])->push([
+                        'show_id' => (int) $show->id,
+                        'seat_ids' => array_values(array_diff($previousSeatIds, $seatIds)),
+                    ])->all(),
+                ];
+            });
+        } catch (Throwable $exception) {
+            $newlyAcquired = array_values(array_diff($acquiredSeatIds, $previousSeatIds));
+            if ($newlyAcquired !== []) {
+                try {
+                    $this->seatHolds->release((int) $show->id, $newlyAcquired, $owner);
+                } catch (Throwable) {
+                    // The Redis TTL is the final cleanup guard if rollback cleanup fails.
                 }
             }
 
-            $this->updateOrderTotal($order, $order->seats()->sum('price') + $order->snacks()->sum('price'));
-
-            return $order;
-        });
+            throw $exception;
+        }
 
         if ($result instanceof JsonResponse) {
             return $result;
         }
 
-        if ($result->wasRecentlyCreated) {
-            ReleaseSeatJob::dispatch($result->id)->delay($result->hold_expires_at);
+        foreach ($result['release'] as $release) {
+            try {
+                $this->seatHolds->release($release['show_id'], $release['seat_ids'], $owner);
+            } catch (Throwable $exception) {
+                Log::warning('Could not release superseded Redis seat holds.', ['exception' => $exception::class]);
+            }
+        }
+
+        /** @var Order $order */
+        $order = $result['order'];
+
+        if ($order->wasRecentlyCreated) {
+            ReleaseSeatJob::dispatch($order->id)->delay($order->hold_expires_at);
         }
 
         return response()->json([
             'message' => 'Giữ ghế thành công.',
             'data' => [
-                'order_id' => $result->id,
-                'total_amount' => $result->total_amount,
-                'hold_expires_at' => $result->hold_expires_at,
+                'order_id' => $order->id,
+                'total_amount' => $order->total_amount,
+                'hold_expires_at' => $order->hold_expires_at,
             ],
         ], 201);
     }
@@ -306,6 +389,24 @@ class BookingController extends Controller
                 'qr_code' => $qrContent,
             ]);
 
+            $seatIds = $order->seats()->pluck('seat_id')->map(fn ($seatId): int => (int) $seatId)->all();
+            $this->releaseSeatHolds($order, $seatIds);
+            $movieId = (int) $order->show()->value('movie_id');
+            $this->leaderboard->increment(
+                $movieId,
+                (float) config('nosql.redis.leaderboard_weights.booking', 5) * max(1, count($seatIds)),
+            );
+            ActivityOccurred::dispatch(
+                'ORDER_PAID',
+                (int) $order->user_id,
+                $movieId,
+                (int) $order->id,
+                ['payment_method' => $validated['payment_method'], 'seat_count' => count($seatIds)],
+                'user',
+                'order',
+                (string) $order->id,
+            );
+
             return response()->json([
                 'message' => 'Thanh toán thành công!',
                 'data' => [
@@ -328,10 +429,12 @@ class BookingController extends Controller
             }
 
             if ($order->status === 'pending') {
+                $seatIds = $order->seats()->pluck('seat_id')->map(fn ($seatId): int => (int) $seatId)->all();
                 $order->update([
                     'status' => 'cancelled',
                     'qr_code' => $request->input('reason') === 'change_seats' ? 'reason:change_seats' : null,
                 ]);
+                $this->releaseSeatHolds($order, $seatIds);
             }
 
             return response()->json([
@@ -404,6 +507,23 @@ class BookingController extends Controller
             'message' => $this->holds->blockedMessage($user),
             'data' => ['blocked_until' => $user->booking_blocked_until],
         ], 429);
+    }
+
+    /** @param  list<int>  $seatIds */
+    private function releaseSeatHolds(Order $order, array $seatIds): void
+    {
+        try {
+            $this->seatHolds->release(
+                (int) $order->show_id,
+                $seatIds,
+                $this->seatHolds->ownerForUser((int) $order->user_id),
+            );
+        } catch (Throwable $exception) {
+            Log::warning('Could not release Redis seat holds after checkout state change.', [
+                'order_id' => $order->id,
+                'exception' => $exception::class,
+            ]);
+        }
     }
 
     /**

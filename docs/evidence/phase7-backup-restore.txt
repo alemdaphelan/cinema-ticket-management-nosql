@@ -1,0 +1,6 @@
+Phase 7 logical backup/restore probes: PASS
+MongoDB: temporary database archive, drop, restore, count and TTL index verified
+Redis: probe value backed up, deleted, restored and compared
+Cassandra: probe table exported, truncated, restored and queried
+Neo4j: probe movie deleted, restored and graph statistics compared
+Business datasets were not deleted; every destructive step used isolated probe data.

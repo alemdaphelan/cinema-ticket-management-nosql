@@ -1,0 +1,54 @@
+﻿CASSANDRA PHASE 5 VERIFICATION
+Generated: 2026-11-18T18:57:06
+Queries below use full partition keys and contain no ALLOW FILTERING.
+
+KEYSPACE REPLICATION
+
+ keyspace_name    | replication
+------------------+---------------------------------------------------------------------------------------
+ cinema_analytics | {'class': 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'datacenter1': '1'}
+
+(1 rows)
+
+TABLE TTL AND COMPACTION
+
+ keyspace_name    | table_name             | default_time_to_live | compaction
+------------------+------------------------+----------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ cinema_analytics |    audit_events_by_day |             15552000 | {'class': 'org.apache.cassandra.db.compaction.TimeWindowCompactionStrategy', 'compaction_window_size': '1', 'compaction_window_unit': 'DAYS', 'max_threshold': '32', 'min_threshold': '4'}
+ cinema_analytics |    movie_events_by_day |              7776000 | {'class': 'org.apache.cassandra.db.compaction.TimeWindowCompactionStrategy', 'compaction_window_size': '1', 'compaction_window_unit': 'DAYS', 'max_threshold': '32', 'min_threshold': '4'}
+ cinema_analytics | user_activity_by_month |              7776000 | {'class': 'org.apache.cassandra.db.compaction.TimeWindowCompactionStrategy', 'compaction_window_size': '1', 'compaction_window_unit': 'DAYS', 'max_threshold': '32', 'min_threshold': '4'}
+
+(3 rows)
+
+USER/MONTH PARTITION QUERY (LOCAL_QUORUM)
+Consistency level set to LOCAL_QUORUM.
+
+ event_type   | occurred_at
+--------------+---------------------------------
+ PHASE5_SMOKE | 2026-11-18 11:56:52.000000+0000
+ PHASE5_SMOKE | 2026-11-18 10:56:53.000000+0000
+ PHASE5_SMOKE | 2026-11-18 05:42:45.000000+0000
+ PHASE5_SMOKE | 2026-11-18 05:39:11.000000+0000
+ PHASE5_SMOKE | 2026-11-17 16:22:51.000000+0000
+
+(5 rows)
+
+MOVIE/DAY PARTITION QUERY (LOCAL_QUORUM)
+Consistency level set to LOCAL_QUORUM.
+
+ event_type   | occurred_at
+--------------+---------------------------------
+ PHASE5_SMOKE | 2026-11-18 11:56:52.000000+0000
+ PHASE5_SMOKE | 2026-11-18 10:56:53.000000+0000
+ PHASE5_SMOKE | 2026-11-18 05:42:45.000000+0000
+ PHASE5_SMOKE | 2026-11-18 05:39:11.000000+0000
+
+(4 rows)
+
+LOGICAL BACKUP/RESTORE PROBE
+
+ probe_id                             | value
+--------------------------------------+-------------------
+ 403e75b7-07f6-4dd4-aa71-6bf78ec628d1 | backup-restore-ok
+
+(1 rows)

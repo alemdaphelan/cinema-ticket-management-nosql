@@ -1,0 +1,77 @@
+﻿NEO4J PHASE 6 VERIFICATION
+Generated: 2026-11-18T18:57:52
+
+CONSTRAINTS
+name, type, labelsOrTypes, properties
+"genre_name_unique", "UNIQUENESS", ["Genre"], ["name"]
+"movie_id_unique", "UNIQUENESS", ["Movie"], ["movie_id"]
+"user_id_unique", "UNIQUENESS", ["User"], ["user_id"]
+
+NODE/RELATIONSHIP COUNTS
+users, movies, genres, relationships
+6, 10, 7, 22
+
+RECONCILIATION
+{
+    "status": "ok",
+    "expected_minimum": {
+        "users": 0,
+        "movies": 0,
+        "booked": 0,
+        "rated": 0
+    },
+    "graph": {
+        "users": 6,
+        "movies": 10,
+        "genres": 7,
+        "in_genre": 12,
+        "viewed": 3,
+        "booked": 7,
+        "rated": 0
+    },
+    "missing": []
+}
+
+SIMILAR MOVIES PROFILE
+candidate.movie_id, shared_genres
+960002, 1
+Plan: "PROFILE"
+Statement: "READ_ONLY"
+Version: "5"
+Planner: "COST"
+Runtime: "SLOTTED"
+Time: 126
+DbHits: 19
+Rows: 1
+Memory (Bytes): 832
+
+PERSONALIZED RECOMMENDATION PROFILE
+candidate.movie_id, affinity
+960002, 1
+Plan: "PROFILE"
+Statement: "READ_ONLY"
+Version: "5"
+Planner: "COST"
+Runtime: "SLOTTED"
+Time: 189
+DbHits: 50
+Rows: 1
+Memory (Bytes): 1416
+
+SMOKE + IDEMPOTENCY + COLD START + LOGICAL BACKUP/RESTORE
+{
+    "status": "ok",
+    "similar_top_movie": 960002,
+    "personalized_strategy": "personalized_graph",
+    "cold_start_strategy": "cold_start_popular",
+    "logical_backup_restore": "ok",
+    "graph": {
+        "users": 6,
+        "movies": 10,
+        "genres": 7,
+        "in_genre": 12,
+        "viewed": 3,
+        "booked": 7,
+        "rated": 0
+    }
+}

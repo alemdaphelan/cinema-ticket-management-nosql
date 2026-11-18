@@ -6,12 +6,16 @@ use App\Models\Order;
 use App\Models\User;
 use Closure;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class BookingHoldService
 {
     public const EXPIRATION_LIMIT = 3;
 
     private const COOLDOWN_MINUTES = 15;
+
+    public function __construct(private RedisSeatHoldService $seatHolds) {}
 
     /**
      * @template TResult
@@ -56,11 +60,12 @@ class BookingHoldService
     private function expireDueHolds(User $user): void
     {
         $orders = $user->orders()
+            ->with('seats:id,order_id,seat_id')
             ->where('status', 'pending')
             ->where('hold_expires_at', '<=', now())
             ->orderBy('hold_expires_at')
             ->lockForUpdate()
-            ->get(['id', 'hold_expires_at']);
+            ->get(['id', 'show_id', 'hold_expires_at']);
 
         if ($orders->isEmpty()) {
             return;
@@ -70,6 +75,21 @@ class BookingHoldService
             'status' => 'cancelled',
             'cancel_reason' => Order::CANCEL_REASON_HOLD_EXPIRED,
         ]);
+
+        foreach ($orders as $order) {
+            try {
+                $this->seatHolds->release(
+                    (int) $order->show_id,
+                    $order->seats->pluck('seat_id')->map(fn ($seatId): int => (int) $seatId)->all(),
+                    $this->seatHolds->ownerForUser((int) $user->id),
+                );
+            } catch (Throwable $exception) {
+                Log::warning('Could not release expired Redis seat holds.', [
+                    'order_id' => $order->id,
+                    'exception' => $exception::class,
+                ]);
+            }
+        }
 
         foreach ($orders as $order) {
             if ($user->booking_blocked_until && $order->hold_expires_at->lte($user->booking_blocked_until)) {

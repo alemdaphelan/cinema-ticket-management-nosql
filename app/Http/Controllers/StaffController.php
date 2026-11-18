@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ActivityOccurred;
 use App\Models\Order;
 use Illuminate\Http\Request;
 
@@ -45,6 +46,16 @@ class StaffController extends Controller
 
         // Cập nhật trạng thái
         $order->update(['status' => 'completed']);
+        ActivityOccurred::dispatch(
+            'TICKET_SCANNED',
+            (int) $order->user_id,
+            (int) $order->show->movie_id,
+            (int) $order->id,
+            ['staff_id' => $request->user()?->id],
+            'staff',
+            'order',
+            (string) $order->id,
+        );
 
         return response()->json([
             'message' => 'Soát vé thành công! Vé đã được đánh dấu "Đã sử dụng".',

@@ -1,0 +1,6 @@
+Phase 7 NoSQL failure probes: PASS
+redis: core MySQL API remained HTTP 200
+mongodb: core MySQL API remained HTTP 200
+cassandra-api: core MySQL API remained HTTP 200
+neo4j: core MySQL API remained HTTP 200
+Payment fallback is covered by PhaseSevenAcceptanceTest with Redis unavailable and queued Cassandra/Neo4j projections.

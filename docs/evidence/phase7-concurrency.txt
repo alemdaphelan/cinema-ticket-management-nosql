@@ -1,0 +1,6 @@
+Phase 7 concurrent seat-hold probe: PASS
+winner=owner-a
+requests=2
+successful_holds=1
+conflicts=1
+atomic_primitive=SET NX EX

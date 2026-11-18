@@ -64,6 +64,16 @@ return [
             ]) : [],
         ],
 
+        'mongodb' => [
+            'driver' => 'mongodb',
+            'dsn' => env('MONGODB_URI'),
+            'database' => env('MONGO_DATABASE', 'cinema_content'),
+            'options' => [
+                'connectTimeoutMS' => (int) env('MONGO_CONNECT_TIMEOUT_MS', 3000),
+                'serverSelectionTimeoutMS' => (int) env('MONGO_CONNECT_TIMEOUT_MS', 3000),
+            ],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

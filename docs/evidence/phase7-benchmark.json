@@ -1,0 +1,15 @@
+{
+    "generated_at": "2026-11-18T18:55:17+07:00",
+    "iterations": 30,
+    "movie_id": 3,
+    "milliseconds": {
+        "mysql_cold_with_cache_write": 191.939,
+        "mysql_uncached_average": 0.849,
+        "redis_cache_hit_average": 0.624,
+        "mongodb_review_summary_average": 19.884,
+        "cassandra_health_average": 50.907,
+        "neo4j_similar_movies_average": 15.123
+    },
+    "cache_speedup": 1.36,
+    "conclusion": "Redis cache hit is faster than the equivalent uncached MySQL query on this dataset."
+}
