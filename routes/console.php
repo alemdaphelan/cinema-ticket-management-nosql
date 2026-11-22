@@ -9,6 +9,7 @@ Artisan::command('inspire', function () {
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('app:update-demo-shows')->daily();
+Schedule::command('app:update-demo-shows')->dailyAt('00:05')->timezone('Asia/Ho_Chi_Minh')->withoutOverlapping();
+Schedule::command('staff:ensure-shifts')->dailyAt('00:10')->timezone('Asia/Ho_Chi_Minh')->withoutOverlapping();
 Schedule::command('nosql:neo4j-sync')->hourly()->withoutOverlapping();
 Schedule::command('nosql:outbox-replay')->everyMinute()->withoutOverlapping();

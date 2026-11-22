@@ -55,20 +55,4 @@
         </div>
     </section>
 
-    {{-- Team Section --}}
-    <section class="max-w-7xl mx-auto px-4 py-20 text-center">
-        <h2 class="text-3xl md:text-4xl font-bold text-cinema-text mb-4">Đồ Án Mã Nguồn Mở</h2>
-        <p class="text-[var(--color-cinema-text-muted)] text-lg max-w-2xl mx-auto mb-12">
-            Hệ thống đặt vé xem phim CineStar được phát triển bởi Nhóm 7 MNM. 
-            Sử dụng kiến trúc hiện đại với sự kết hợp của các công nghệ mã nguồn mở hàng đầu.
-        </p>
-        
-        <div class="inline-block p-8 rounded-3xl glass" style="background: linear-gradient(135deg, rgba(229,9,20,0.1), rgba(245,197,24,0.1)); border: 1px solid var(--color-cinema-border);">
-            <div class="text-6xl mb-4">👨‍💻</div>
-            <h3 class="text-2xl font-bold text-cinema-text mb-2">Nhóm 7 MNM</h3>
-            <p class="text-[var(--color-cinema-text-muted)] max-w-md">
-                Chúng tôi hi vọng dự án này sẽ mang lại cái nhìn rõ nét về việc xây dựng hệ thống với các công nghệ Mã Nguồn Mở trong thực tế.
-            </p>
-        </div>
-    </section>
 </x-layouts.main>

@@ -6,10 +6,14 @@ services:
     image: cinema-ticket-app
     container_name: cinema_nosql_app
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     ports:
       - "8000:80"
     volumes:
       - .:/var/www/html
+      - vendor_data:/var/www/html/vendor
     environment:
       APP_KEY: ${APP_KEY:?Run scripts/nosql/init-env.ps1 to create APP_KEY}
       DB_CONNECTION: mysql
@@ -95,9 +99,13 @@ services:
       dockerfile: Dockerfile
     container_name: cinema_nosql_scheduler
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     command: sh -c "php artisan app:update-demo-shows && php artisan schedule:work"
     volumes:
       - .:/var/www/html
+      - vendor_data:/var/www/html/vendor
     environment:
       APP_KEY: ${APP_KEY:?Run scripts/nosql/init-env.ps1 to create APP_KEY}
       DB_CONNECTION: mysql
@@ -144,9 +152,13 @@ services:
     image: cinema-ticket-app
     container_name: cinema_worker
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     command: php artisan queue:work --queue=default --tries=5 --backoff=5 --timeout=60
     volumes:
       - .:/var/www/html
+      - vendor_data:/var/www/html/vendor
     environment:
       APP_KEY: ${APP_KEY:?Run scripts/nosql/init-env.ps1 to create APP_KEY}
       DB_CONNECTION: mysql
@@ -375,3 +387,5 @@ volumes:
     name: cinema_neo4j_data
   neo4j_logs:
     name: cinema_neo4j_logs
+  vendor_data:
+    name: cinema_vendor_data

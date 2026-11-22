@@ -156,5 +156,7 @@ class DatabaseSeeder extends Seeder
         foreach ($vouchers as $voucherData) {
             Voucher::create($voucherData);
         }
+
+        $this->call(StaffManagementSeeder::class);
     }
 }

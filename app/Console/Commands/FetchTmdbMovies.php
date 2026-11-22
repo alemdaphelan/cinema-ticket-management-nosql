@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Movie;
 use App\Services\RedisQueryCache;
+use App\Support\MovieTranslations;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
@@ -15,7 +16,7 @@ class FetchTmdbMovies extends Command
 
     public function handle(RedisQueryCache $cache)
     {
-        $apiKey = env('TMDB_API_KEY', 'ebf1d04adcf30701e41125e0fa1ea5c6');
+        $apiKey = env('TMDB_API_KEY') ?: 'ebf1d04adcf30701e41125e0fa1ea5c6';
 
         $this->info('Đang kéo phim Đang chiếu (Now Playing)...');
         for ($page = 1; $page <= 2; $page++) {
@@ -29,6 +30,7 @@ class FetchTmdbMovies extends Command
             $this->fetchMovies("https://api.themoviedb.org/3/movie/upcoming?api_key={$apiKey}&language=vi-VN&page={$page}", 'coming_soon', "tmdb_coming_{$page}.json");
         }
 
+        MovieTranslations::forgetCache();
         $cache->invalidate(['movies:list', 'shows:list']);
         $this->info('Kéo dữ liệu TMDB thành công!');
     }
@@ -66,7 +68,7 @@ class FetchTmdbMovies extends Command
 
                 // Kéo trailer thật từ TMDB (có thể bỏ qua nếu mạng lỗi)
                 $teaserUrl = null; // Tránh dùng Rickroll làm trailer mặc định
-                $apiKey = env('TMDB_API_KEY', 'ebf1d04adcf30701e41125e0fa1ea5c6');
+                $apiKey = env('TMDB_API_KEY') ?: 'ebf1d04adcf30701e41125e0fa1ea5c6';
                 try {
                     $videoResponse = Http::timeout(3)->withoutVerifying()->get("https://api.themoviedb.org/3/movie/{$tmdbMovie['id']}/videos?api_key={$apiKey}");
                     if ($videoResponse->successful()) {
@@ -97,16 +99,29 @@ class FetchTmdbMovies extends Command
                 $imageProxy = 'https://wsrv.nl/?url=image.tmdb.org/t/p/w500';
                 $posterUrl = $tmdbMovie['poster_path'] ? $imageProxy.$tmdbMovie['poster_path'] : '/images/placeholder.png';
 
+                $titleEn = $tmdbMovie['original_title'] ?? null;
+                $descEn = null;
+                try {
+                    $enResponse = Http::timeout(3)->withoutVerifying()->get("https://api.themoviedb.org/3/movie/{$tmdbMovie['id']}?api_key={$apiKey}&language=en-US");
+                    if ($enResponse->successful()) {
+                        $titleEn = trim((string) $enResponse->json('title', '')) ?: $titleEn;
+                        $descEn = trim((string) $enResponse->json('overview', '')) ?: null;
+                    }
+                } catch (\Exception $e) {
+                }
+
                 // Vì API list không trả về thời lượng và đạo diễn chi tiết, ta sẽ giả lập một chút cho đẹp
                 Movie::create([
                     'tmdb_id' => $tmdbMovie['id'],
                     'title' => $tmdbMovie['title'],
+                    'title_en' => $titleEn,
                     'director' => 'Đạo diễn Hollywood', // Giả lập
                     'poster_url' => $posterUrl,
                     'teaser_url' => $teaserUrl,
                     'duration_minutes' => rand(90, 160),
                     'status' => $status,
                     'description' => $tmdbMovie['overview'] ?: 'Đang cập nhật...',
+                    'description_en' => $descEn,
                     'genre' => 'Hành động, Phiêu lưu', // Giả lập
                 ]);
             }

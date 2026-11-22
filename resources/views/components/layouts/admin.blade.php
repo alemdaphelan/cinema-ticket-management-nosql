@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,7 +25,7 @@
 
                 <nav class="space-y-1">
                     <a href="/admin/dashboard" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('admin/dashboard') ? 'active' : 'text-[var(--color-cinema-text-muted)]' }}">
-                        Dashboard
+                        Thống kê
                     </a>
                     <a href="/admin/movies" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('admin/movies*') ? 'active' : 'text-[var(--color-cinema-text-muted)]' }}">
                         Quản lý Phim
@@ -42,14 +42,19 @@
                     <a href="/admin/orders" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('admin/orders*') ? 'active' : 'text-[var(--color-cinema-text-muted)]' }}">
                         Đơn hàng
                     </a>
+                    <a href="/admin/staff/schedule" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('admin/staff*') ? 'active' : 'text-[var(--color-cinema-text-muted)]' }}">
+                        Quản lý nhân viên
+                    </a>
 
                     <div class="border-t border-[var(--color-cinema-border)] my-4"></div>
 
                     <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-cinema-text-muted)] hover:text-cinema-text">
-                        <span>🏠 Xem trang chủ</span>
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                        <span>Xem trang chủ</span>
                     </a>
                     <a href="/staff/scan" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-cinema-success-text hover:bg-[var(--color-cinema-card)]">
-                        <span>🎟️ Chế độ Staff (Quét vé)</span>
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+                        <span>Chế độ Staff</span>
                     </a>
                 </nav>
             </div>
@@ -64,9 +69,10 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
 
-                <h1 class="min-w-0 flex-1 break-words text-sm font-bold sm:text-lg">{{ $header ?? 'Dashboard' }}</h1>
+                <h1 class="min-w-0 flex-1 break-words text-sm font-bold sm:text-lg">{{ $header ?? 'Thống kê' }}</h1>
 
                 <div class="flex shrink-0 items-center gap-1 sm:gap-3">
+                    <x-language-toggle />
                     <x-theme-toggle />
 
                     <a href="/staff/scan" class="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--color-cinema-success)]/40 text-cinema-success-text hover:bg-[var(--color-cinema-success)]/10 transition-all">
@@ -94,16 +100,23 @@
                             <span class="text-lg font-bold gradient-text">CineStar Admin</span>
                         </a>
                         <nav class="space-y-1">
-                            <a href="/admin/dashboard" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-cinema-text-muted)]">Dashboard</a>
+                            <a href="/admin/dashboard" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('admin/dashboard') ? 'active' : 'text-[var(--color-cinema-text-muted)]' }}">Thống kê</a>
                             <a href="/admin/movies" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-cinema-text-muted)]">Quản lý Phim</a>
                             <a href="/admin/shows" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-cinema-text-muted)]">Suất chiếu</a>
                             <a href="/admin/snacks" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-cinema-text-muted)]">Bắp nước</a>
                             <a href="/admin/vouchers" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-cinema-text-muted)]">Voucher</a>
                             <a href="/admin/orders" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-cinema-text-muted)]">Đơn hàng</a>
+                            <a href="/admin/staff/schedule" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('admin/staff*') ? 'active' : 'text-[var(--color-cinema-text-muted)]' }}">Quản lý nhân viên</a>
                             
                             <div class="border-t border-[var(--color-cinema-border)] my-3"></div>
-                            <a href="/staff/scan" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-cinema-success-text">🎟️ Chế độ Staff (Quét vé)</a>
-                            <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-cinema-text-muted)]">🏠 Xem trang chủ</a>
+                            <a href="/staff/scan" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-cinema-success-text">
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+                                <span>Chế độ Staff</span>
+                            </a>
+                            <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[var(--color-cinema-text-muted)]">
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                                <span>Xem trang chủ</span>
+                            </a>
                         </nav>
                     </div>
                 </div>

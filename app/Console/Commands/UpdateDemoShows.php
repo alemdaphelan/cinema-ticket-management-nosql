@@ -21,7 +21,7 @@ class UpdateDemoShows extends Command
         $today = now(ShowSchedulingService::TIMEZONE)->startOfDay();
         $movies = Movie::where('status', 'showing')->get();
         $roomIds = Room::pluck('id');
-        $times = ['08:00', '09:30', '11:00', '13:00', '14:30', '16:00', '18:30', '20:00', '21:30'];
+        $times = ['14:20', '17:30', '20:40', '11:10', '08:00'];
         $prices = [75000, 85000, 95000, 100000, 120000];
         $created = 0;
 
@@ -33,16 +33,17 @@ class UpdateDemoShows extends Command
             }
 
             $slots = [];
-            foreach ($roomIds as $roomId) {
-                foreach ($times as $time) {
+            foreach ($times as $time) {
+                $shuffledRooms = $roomIds->shuffle();
+                foreach ($shuffledRooms as $roomId) {
                     $slots[] = [$roomId, $day->copy()->setTimeFromTimeString($time)->toIso8601String()];
                 }
             }
-            shuffle($slots);
+            $slots = array_reverse($slots);
 
+            // Pass 1: Đảm bảo mỗi phim đang chiếu có ít nhất 1 suất chiếu mỗi ngày
             foreach ($movies->shuffle() as $movie) {
-                $limit = random_int(1, 4);
-                for ($added = 0; $added < $limit && $slots;) {
+                while ($slots) {
                     [$roomId, $start] = array_pop($slots);
 
                     try {
@@ -52,11 +53,32 @@ class UpdateDemoShows extends Command
                             'start_time' => $start,
                             'price' => $prices[array_rand($prices)],
                         ]);
-                        $added++;
                         $created++;
+                        break;
                     } catch (ValidationException) {
                         continue;
                     }
+                }
+            }
+
+            // Pass 2: Phân bổ các khung giờ còn lại cho thêm suất chiếu trong ngày
+            foreach ($movies->shuffle() as $movie) {
+                if (! $slots) {
+                    break;
+                }
+
+                [$roomId, $start] = array_pop($slots);
+
+                try {
+                    $scheduling->save([
+                        'movie_id' => $movie->id,
+                        'room_id' => $roomId,
+                        'start_time' => $start,
+                        'price' => $prices[array_rand($prices)],
+                    ]);
+                    $created++;
+                } catch (ValidationException) {
+                    continue;
                 }
             }
         }

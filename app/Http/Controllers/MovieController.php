@@ -9,6 +9,7 @@ use App\Services\MongoReviewRepository;
 use App\Services\Neo4jRecommendationRepository;
 use App\Services\RedisMovieLeaderboard;
 use App\Services\RedisQueryCache;
+use App\Support\MovieTranslations;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Artisan;
@@ -53,7 +54,10 @@ class MovieController extends Controller
             }
 
             if ($search !== '') {
-                $query->where('title', 'like', "%{$search}%");
+                $query->where(function ($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                        ->orWhere('title_en', 'like', "%{$search}%");
+                });
             }
 
             if ($genre !== '') {
@@ -244,6 +248,7 @@ class MovieController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'title_en' => 'nullable|string|max:255',
             'director' => 'nullable|string|max:255',
             'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'poster_url' => 'nullable|string',
@@ -253,6 +258,7 @@ class MovieController extends Controller
             'status' => 'required|in:coming_soon,showing,stopped',
             'tmdb_id' => 'nullable|string',
             'description' => 'nullable|string',
+            'description_en' => 'nullable|string',
             'genre' => 'nullable|string',
             'age_rating' => 'nullable|string|max:10',
             'release_date' => 'nullable|date',
@@ -271,6 +277,7 @@ class MovieController extends Controller
         unset($validated['teaser_file']);
 
         $movie = Movie::create($validated);
+        MovieTranslations::forgetCache();
         $this->cache->invalidate(['movies:list', 'shows:list']);
 
         return response()->json(['data' => $movie, 'message' => 'Thêm phim thành công!'], 201);
@@ -285,6 +292,7 @@ class MovieController extends Controller
 
         $validated = $request->validate([
             'title' => 'sometimes|string|max:255',
+            'title_en' => 'nullable|string|max:255',
             'director' => 'nullable|string|max:255',
             'poster' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'poster_url' => 'nullable|string',
@@ -294,6 +302,7 @@ class MovieController extends Controller
             'status' => 'sometimes|in:coming_soon,showing,stopped',
             'tmdb_id' => 'nullable|string',
             'description' => 'nullable|string',
+            'description_en' => 'nullable|string',
             'genre' => 'nullable|string',
             'age_rating' => 'nullable|string|max:10',
             'release_date' => 'nullable|date',
@@ -320,6 +329,7 @@ class MovieController extends Controller
         unset($validated['teaser_file']);
 
         $movie->update($validated);
+        MovieTranslations::forgetCache();
         $this->cache->invalidate(['movies:list', "movies:detail:{$movie->id}", 'shows:list']);
 
         return response()->json(['data' => $movie, 'message' => 'Cập nhật phim thành công!']);
@@ -332,6 +342,7 @@ class MovieController extends Controller
     {
         $movie = Movie::findOrFail($id);
         $movie->delete();
+        MovieTranslations::forgetCache();
         $this->cache->invalidate(['movies:list', "movies:detail:{$id}", 'shows:list']);
 
         return response()->json(null, 204);
@@ -343,6 +354,7 @@ class MovieController extends Controller
     public function fetchTmdbList()
     {
         Artisan::call('movies:fetch-tmdb');
+        MovieTranslations::forgetCache();
         $this->cache->invalidate(['movies:list', 'shows:list']);
 
         return response()->json(['message' => 'Đã kéo thành công dữ liệu từ TMDB!']);

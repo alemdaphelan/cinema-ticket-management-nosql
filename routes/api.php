@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\AdminStaffController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\MovieController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ShowController;
 use App\Http\Controllers\SnackController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\StaffWorkspaceController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Middleware\RoleMiddleware;
 use App\Models\Movie;
@@ -98,6 +100,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders/export', [OrderController::class, 'exportExcel']);
         Route::get('/orders/{id}', [BookingController::class, 'orderDetail']);
         Route::get('/statistics', [OrderController::class, 'statistics']);
+
+        // Staff Workspace (Lịch làm, Chấm công, Tính lương)
+        Route::get('/my-schedule', [StaffWorkspaceController::class, 'mySchedule']);
+        Route::get('/my-attendance/today', [StaffWorkspaceController::class, 'myTodayAttendance']);
+        Route::post('/my-attendance/check-in', [StaffWorkspaceController::class, 'checkIn']);
+        Route::post('/my-attendance/check-out', [StaffWorkspaceController::class, 'checkOut']);
+        Route::get('/my-payroll', [StaffWorkspaceController::class, 'myPayroll']);
+        Route::get('/my-payroll/export', [StaffWorkspaceController::class, 'exportPayroll']);
     });
 
     // Admin
@@ -133,5 +143,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders/export', [OrderController::class, 'exportExcel']);
         Route::get('/statistics', [OrderController::class, 'statistics'])->name('admin.statistics');
         Route::get('/statistics/movie-bookings', [OrderController::class, 'movieBookings']);
+
+        // Quản lý nhân viên
+        Route::prefix('staff')->group(function () {
+            Route::get('/schedule', [AdminStaffController::class, 'schedule']);
+            Route::get('/alerts', [AdminStaffController::class, 'alerts']);
+            Route::post('/alerts/acknowledge', [AdminStaffController::class, 'acknowledgeAlerts']);
+            Route::post('/assignments/{assignmentId}/attendance', [AdminStaffController::class, 'recordAttendance']);
+            Route::get('/attendance', [AdminStaffController::class, 'attendance']);
+            Route::get('/attendance/export', [AdminStaffController::class, 'exportAttendance']);
+            Route::get('/accounts', [AdminStaffController::class, 'accounts']);
+            Route::post('/accounts', [AdminStaffController::class, 'storeAccount']);
+            Route::put('/accounts/{id}', [AdminStaffController::class, 'updateAccount']);
+            Route::post('/accounts/{id}/reset-password', [AdminStaffController::class, 'resetPassword']);
+            Route::patch('/accounts/{id}/status', [AdminStaffController::class, 'updateAccountStatus']);
+        });
     });
 });

@@ -1,12 +1,21 @@
 <?php
 
+use App\Http\Controllers\AdminStaffController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ShowController;
+use App\Http\Controllers\StaffWorkspaceController;
 use App\Http\Middleware\EnsureBookingAllowed;
 use App\Models\Order;
 use App\Services\BookingHoldService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+// === Chuyển đổi ngôn ngữ VI / EN ===
+Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
+Route::get('/locale/{locale}', [LocaleController::class, 'switch'])
+    ->whereIn('locale', ['vi', 'en'])
+    ->name('locale.switch');
 
 // === Trang chủ ===
 Route::get('/', function () {
@@ -217,6 +226,13 @@ Route::middleware(['auth', \App\Http\Middleware\RoleMiddleware::class . ':admin'
     })->name('admin.orders');
 
     Route::get('/orders/export', [App\Http\Controllers\OrderController::class, 'exportExcel'])->name('admin.orders.export');
+
+    // Quản lý nhân viên
+    Route::get('/staff', fn () => redirect()->route('admin.staff.schedule'))->name('admin.staff');
+    Route::get('/staff/schedule', [AdminStaffController::class, 'schedulePage'])->name('admin.staff.schedule');
+    Route::get('/staff/attendance', [AdminStaffController::class, 'attendancePage'])->name('admin.staff.attendance');
+    Route::get('/staff/attendance/export', [AdminStaffController::class, 'exportAttendance'])->name('admin.staff.attendance.export');
+    Route::get('/staff/accounts', [AdminStaffController::class, 'accountsPage'])->name('admin.staff.accounts');
 });
 
 // === Staff (cần login + role staff hoặc admin) ===
@@ -234,6 +250,11 @@ Route::middleware(['auth', \App\Http\Middleware\RoleMiddleware::class . ':staff,
     Route::get('/booking', function () {
         return redirect('/');
     })->name('staff.booking');
+
+    Route::get('/schedule', [StaffWorkspaceController::class, 'schedulePage'])->name('staff.schedule');
+    Route::get('/attendance', [StaffWorkspaceController::class, 'attendancePage'])->name('staff.attendance');
+    Route::get('/payroll', [StaffWorkspaceController::class, 'payrollPage'])->name('staff.payroll');
+    Route::get('/payroll/export', [StaffWorkspaceController::class, 'exportPayroll'])->name('staff.payroll.export');
 });
 
 // === Chatbot ===

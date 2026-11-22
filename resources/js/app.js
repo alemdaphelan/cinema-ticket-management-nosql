@@ -1,4 +1,7 @@
+import { initializeI18n } from './i18n.js';
 import { initializeAdminCatalog } from './admin-catalog.js';
+
+initializeI18n();
 
 const catalog = document.querySelector('[data-admin-catalog]');
 if (catalog) {

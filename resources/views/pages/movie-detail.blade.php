@@ -75,6 +75,13 @@
         }
 
         function renderMovieDetail(movie) {
+            if (window.registerI18nTranslations) {
+                const pairs = {};
+                if (movie.title && movie.title_en) pairs[movie.title] = movie.title_en;
+                if (movie.description && movie.description_en) pairs[movie.description] = movie.description_en;
+                if (Object.keys(pairs).length > 0) window.registerI18nTranslations(pairs);
+            }
+
             const container = document.getElementById('movie-detail');
             const avgRating = movieReviewStats.average_rating || 0;
             const totalReviews = movieReviewStats.total_reviews || 0;

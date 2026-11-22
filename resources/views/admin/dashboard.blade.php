@@ -1,4 +1,4 @@
-<x-layouts.admin title="Dashboard - Admin" header="Dashboard Thống Kê">
+<x-layouts.admin title="Thống kê - Admin" header="Thống kê">
     {{-- Chart.js CDN --}}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -248,6 +248,9 @@
         window.addEventListener('cinema:theme-change', () => {
             if (lastChartData) renderCharts(...lastChartData);
         });
+        window.addEventListener('cinema:locale-change', () => {
+            if (lastChartData) renderCharts(...lastChartData);
+        });
 
         // Hàm chọn nhanh đồng bộ hai chiều với thanh nút và dropdown/input
         function selectQuickFilter(type) {
@@ -491,6 +494,10 @@
 
         function renderCharts(chartData, transferTotal, cashTotal) {
             lastChartData = [chartData, transferTotal, cashTotal];
+            const isEn = window.getAppLocale?.() === 'en';
+            const transferLabel = isEn ? 'Bank Transfer' : 'Chuyển khoản';
+            const cashLabel = isEn ? 'Cash' : 'Tiền mặt';
+            const currencyUnit = isEn ? ' VND' : 'đ';
 
             const theme = getComputedStyle(document.documentElement);
             const text = theme.getPropertyValue('--color-cinema-text').trim();
@@ -510,10 +517,10 @@
             revenueChartInstance = new Chart(ctxRevenue, {
                 type: 'bar',
                 data: {
-                    labels: labels.length > 0 ? labels : ['Không có dữ liệu'],
+                    labels: labels.length > 0 ? labels : [isEn ? 'No data' : 'Không có dữ liệu'],
                     datasets: [
                         {
-                            label: 'Chuyển khoản',
+                            label: transferLabel,
                             data: transferData.length > 0 ? transferData : [0],
                             backgroundColor: 'rgba(16, 185, 129, 0.85)',
                             borderColor: '#10b981',
@@ -521,7 +528,7 @@
                             borderRadius: 6,
                         },
                         {
-                            label: 'Tiền mặt',
+                            label: cashLabel,
                             data: cashData.length > 0 ? cashData : [0],
                             backgroundColor: 'rgba(245, 158, 11, 0.85)',
                             borderColor: '#f59e0b',
@@ -564,7 +571,7 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `${context.dataset.label}: ${Number(context.raw).toLocaleString('vi-VN')}đ`;
+                                    return `${context.dataset.label}: ${Number(context.raw).toLocaleString('vi-VN')}${currencyUnit}`;
                                 }
                             }
                         }
@@ -583,7 +590,7 @@
             paymentChartInstance = new Chart(ctxPayment, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Chuyển khoản', 'Tiền mặt'],
+                    labels: [transferLabel, cashLabel],
                     datasets: [{
                         data: hasData ? [transferTotal, cashTotal] : [1, 0],
                         backgroundColor: hasData
@@ -605,11 +612,11 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    if (!hasData) return 'Chưa có giao dịch';
+                                    if (!hasData) return isEn ? 'No transactions yet' : 'Chưa có giao dịch';
                                     const val = Number(context.raw);
                                     const total = transferTotal + cashTotal;
                                     const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                                    return `${context.label}: ${val.toLocaleString('vi-VN')}đ (${pct}%)`;
+                                    return `${context.label}: ${val.toLocaleString('vi-VN')}${currencyUnit} (${pct}%)`;
                                 }
                             }
                         }

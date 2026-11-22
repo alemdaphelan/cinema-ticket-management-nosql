@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -31,6 +31,15 @@
                     </a>
                     <a href="/staff/booking" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/booking*') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)] hover:bg-[var(--color-cinema-card)]' }}">
                         Bán vé tại quầy
+                    </a>
+                    <a href="/staff/schedule" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/schedule*') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)] hover:bg-[var(--color-cinema-card)]' }}">
+                        Lịch làm
+                    </a>
+                    <a href="/staff/attendance" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/attendance*') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)] hover:bg-[var(--color-cinema-card)]' }}">
+                        Chấm công
+                    </a>
+                    <a href="/staff/payroll" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/payroll*') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)] hover:bg-[var(--color-cinema-card)]' }}">
+                        Tính lương
                     </a>
 
                     @if(Auth::check() && Auth::user()->role === 'admin')
@@ -64,6 +73,7 @@
                 <h1 class="min-w-0 flex-1 break-words text-sm font-bold text-cinema-success-text sm:text-lg">{{ $header ?? 'Staff Panel' }}</h1>
 
                 <div class="flex shrink-0 items-center gap-1 sm:gap-3">
+                    <x-language-toggle />
                     <x-theme-toggle />
 
                     @if(Auth::check() && Auth::user()->role === 'admin')
@@ -98,6 +108,9 @@
                             <a href="/staff/scan" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/scan') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)]' }}">Quét vé</a>
                             <a href="/staff/orders" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/orders*') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)]' }}">Đơn hàng & Doanh thu</a>
                             <a href="/staff/booking" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/booking*') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)]' }}">Bán vé tại quầy</a>
+                            <a href="/staff/schedule" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/schedule*') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)]' }}">Lịch làm</a>
+                            <a href="/staff/attendance" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/attendance*') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)]' }}">Chấm công</a>
+                            <a href="/staff/payroll" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium {{ request()->is('staff/payroll*') ? 'bg-[var(--color-cinema-success)]/20 text-cinema-success-text' : 'text-[var(--color-cinema-text-muted)]' }}">Tính lương</a>
 
                             @if(Auth::check() && Auth::user()->role === 'admin')
                                 <div class="border-t border-[var(--color-cinema-border)] my-4"></div>

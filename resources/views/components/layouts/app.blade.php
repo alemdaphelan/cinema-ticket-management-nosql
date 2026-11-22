@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -66,8 +66,9 @@
                 </div>
             </div>
 
-            {{-- Auth Buttons & Theme Toggle --}}
-            <div class="flex items-center gap-3">
+            {{-- Auth Buttons & Language & Theme Toggle --}}
+            <div class="flex items-center gap-2 sm:gap-3">
+                <x-language-toggle />
                 <x-theme-toggle />
 
                 @auth
@@ -233,7 +234,7 @@
             </div>
 
             <div class="mt-8 pt-8 border-t border-[var(--color-cinema-border)] text-center text-sm text-[var(--color-cinema-text-muted)]">
-                © {{ date('Y') }} CineStar Cinema. Đồ án môn học - Nhóm 7 MNM.
+                © {{ date('Y') }} CineStar Cinema. All rights reserved.
             </div>
         </div>
     </footer>

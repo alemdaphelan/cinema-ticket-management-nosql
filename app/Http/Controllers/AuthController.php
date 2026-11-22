@@ -55,6 +55,12 @@ class AuthController extends Controller
             ]);
         }
 
+        if (! $user->isAccountActive()) {
+            throw ValidationException::withMessages([
+                'email' => ['Tài khoản của bạn hiện đang bị khóa hoặc ngừng hoạt động. Vui lòng liên hệ quản trị viên.'],
+            ]);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -95,6 +101,13 @@ class AuthController extends Controller
             'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
+
+        $candidate = User::where('email', $credentials['email'])->first();
+        if ($candidate && ! $candidate->isAccountActive() && Hash::check($credentials['password'], $candidate->password)) {
+            return back()->withErrors([
+                'email' => 'Tài khoản của bạn hiện đang bị khóa hoặc ngừng hoạt động. Vui lòng liên hệ quản trị viên.',
+            ])->onlyInput('email');
+        }
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
