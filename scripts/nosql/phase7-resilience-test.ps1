@@ -27,9 +27,20 @@ try {
     )) {
         & docker compose --env-file $envPath stop $probe.Service | Out-Null
         try {
-            $response = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8000/api/test-db' -TimeoutSec 20
+            # A fresh query key plus MISS/BYPASS verifies MySQL, not a warm cache.
+            # Empty business datasets are valid: the API must still return an array.
+            $cacheStatus = ''
+            for ($attempt = 0; $attempt -lt 5; $attempt++) {
+                $date = ([datetime]'2200-01-01').AddDays((Get-Random -Minimum 0 -Maximum 2000000)).ToString('yyyy-MM-dd')
+                $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8000/api/shows?date=$date" -TimeoutSec 20
+                $cacheStatus = [string] $response.Headers['X-Cache']
+                if ($cacheStatus -in @('MISS', 'BYPASS')) { break }
+            }
             if ($response.StatusCode -ne 200) { throw "Core API returned $($response.StatusCode)." }
-            $results.Add("$($probe.Service): core MySQL API remained HTTP 200")
+            if ($cacheStatus -notin @('MISS', 'BYPASS')) { throw 'Probe did not exercise an uncached MySQL read.' }
+            $payload = $response.Content | ConvertFrom-Json
+            if ($null -eq $payload.data -or $payload.data -isnot [System.Array]) { throw 'Core API returned an invalid show list.' }
+            $results.Add("$($probe.Service): shows API remained HTTP 200; X-Cache=$cacheStatus; MySQL query executed")
         }
         finally {
             & docker compose --env-file $envPath start $probe.Service | Out-Null

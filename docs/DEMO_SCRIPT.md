@@ -33,16 +33,18 @@ Mở sơ đồ trong tài liệu SRS/SDS. Nêu MySQL là source of truth; Redis 
 ## 4:40–5:40 — Chịu lỗi và nhất quán
 
 1. Mở `phase7-resilience.txt`: API MySQL vẫn HTTP 200 khi từng NoSQL bị dừng.
-2. Mở `phase7-tests.txt`: 53 test, 462 assertion.
+2. Mở `phase7-tests.txt`: 70 test, 679 assertions; test chức năng dùng SQLite và các driver NoSQL array, các phép thử live có minh chứng riêng.
 3. Nêu thanh toán commit ở MySQL; projection chạy queue và outbox replay, vì vậy lỗi analytics/cache/recommendation không làm mất giao dịch chính.
 
 ## 5:40–6:30 — Backup/restore và kết luận
 
 1. Mở `phase7-backup-restore.txt`, chỉ PASS của 4 CSDL.
-2. Mở benchmark và nêu số đo demo: Redis hit 1,243 ms, MySQL không cache 1,708 ms; nhanh hơn khoảng 1,37 lần nhưng không suy diễn thành hiệu năng production.
+2. Mở benchmark ngày 25/11: Redis hit 0,744 ms, MySQL không cache 0,589 ms. Lần này Redis chậm hơn trên dữ liệu rất nhỏ; không suy diễn thành hiệu năng production.
 3. Kết luận: bốn NoSQL có chức năng riêng, có fallback, test, backup/restore và bằng chứng GUI.
 
 ## Chuẩn bị trước demo
+
+Stack Docker hiện chưa có phim, suất chiếu và đơn hàng trong MySQL. Chuẩn bị dữ liệu mẫu và kiểm tra lại luồng trình duyệt trước khi quay; các probe kỹ thuật không thay thế dữ liệu demo nghiệp vụ.
 
 ```powershell
 docker compose --env-file .env.nosql.local up -d

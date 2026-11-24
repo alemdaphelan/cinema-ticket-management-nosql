@@ -463,7 +463,12 @@
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': window.CSRF_TOKEN,
                 },
-                body: JSON.stringify({ rating: parseInt(rating), comment: comment || null }),
+                body: JSON.stringify({
+                    rating: parseInt(rating),
+                    comment: comment || null,
+                    tags: [...new Set(comment.match(/#[\p{L}\p{N}_]+/gu) || [])]
+                        .filter(tag => [...tag].length <= 50).slice(0, 5),
+                }),
             })
             .then(res => res.json().then(data => ({ ok: res.ok, status: res.status, data })))
             .then(({ ok, status, data }) => {
@@ -632,7 +637,7 @@
                         <div class="space-y-2">
                             ${tags.slice(0, 4).map(t => `
                                 <div class="flex items-center justify-between text-xs bg-[var(--color-cinema-card)] px-3 py-1.5 rounded-lg border border-[var(--color-cinema-border)]/60">
-                                    <span class="text-[var(--color-cinema-text)]">${t.tag}</span>
+                                    <span class="text-[var(--color-cinema-text)]">${String(t.tag).replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]))}</span>
                                     <span class="font-bold text-cinema-primary-text">${t.percentage}%</span>
                                 </div>
                             `).join('')}

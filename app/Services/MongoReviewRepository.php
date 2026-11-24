@@ -159,6 +159,53 @@ class MongoReviewRepository
         return $this->summaries([$movieId])[$movieId];
     }
 
+    /** @return array<int, array{tag: string, percentage: int}> */
+    public function topTags(int $movieId, int $totalReviews): array
+    {
+        // Legacy SQL reviews do not have a tags column.
+        if ($totalReviews === 0 || $this->usesMysql()) {
+            return [];
+        }
+
+        if ($this->usesArray()) {
+            $counts = [];
+            foreach ($this->documents as $review) {
+                if ($review['movie_id'] !== $movieId || $review['status'] !== 'published') {
+                    continue;
+                }
+                foreach (array_unique($review['tags']) as $tag) {
+                    if (is_string($tag) && $tag !== '') {
+                        $counts[$tag] = ($counts[$tag] ?? 0) + 1;
+                    }
+                }
+            }
+            $rows = [];
+            foreach ($counts as $tag => $count) {
+                $rows[] = ['tag' => (string) $tag, 'count' => $count];
+            }
+            usort($rows, fn (array $a, array $b) => ($b['count'] <=> $a['count']) ?: strcmp($a['tag'], $b['tag']));
+            $rows = array_slice($rows, 0, 5);
+        } else {
+            $rows = [];
+            foreach ($this->collection()->aggregate([
+                ['$match' => ['movie_id' => $movieId, 'status' => 'published']],
+                ['$project' => ['tags' => ['$setUnion' => [['$ifNull' => ['$tags', []]], []]]]],
+                ['$unwind' => '$tags'],
+                ['$match' => ['tags' => ['$type' => 'string', '$ne' => '']]],
+                ['$group' => ['_id' => '$tags', 'count' => ['$sum' => 1]]],
+                ['$sort' => ['count' => -1, '_id' => 1]],
+                ['$limit' => 5],
+            ]) as $row) {
+                $rows[] = ['tag' => (string) $row['_id'], 'count' => (int) $row['count']];
+            }
+        }
+
+        return array_map(fn (array $row) => [
+            'tag' => $row['tag'],
+            'percentage' => (int) round($row['count'] / $totalReviews * 100),
+        ], $rows);
+    }
+
     public function exists(int $movieId, int $userId): bool
     {
         if ($this->usesMysql()) {

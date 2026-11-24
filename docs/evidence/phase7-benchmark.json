@@ -1,15 +1,15 @@
 {
-    "generated_at": "2026-11-18T18:55:17+07:00",
+    "generated_at": "2026-11-25T06:32:51+07:00",
     "iterations": 30,
-    "movie_id": 3,
+    "movie_id": 5,
     "milliseconds": {
-        "mysql_cold_with_cache_write": 191.939,
-        "mysql_uncached_average": 0.849,
-        "redis_cache_hit_average": 0.624,
-        "mongodb_review_summary_average": 19.884,
-        "cassandra_health_average": 50.907,
-        "neo4j_similar_movies_average": 15.123
+        "mysql_cold_with_cache_write": 3.696,
+        "mysql_uncached_average": 0.589,
+        "redis_cache_hit_average": 0.744,
+        "mongodb_review_summary_average": 2.006,
+        "cassandra_health_average": 5.374,
+        "neo4j_similar_movies_average": 10.167
     },
-    "cache_speedup": 1.36,
-    "conclusion": "Redis cache hit is faster than the equivalent uncached MySQL query on this dataset."
+    "cache_speedup": 0.79,
+    "conclusion": "The demo dataset is too small for Redis to outperform MySQL consistently; cache correctness and TTL remain verified."
 }

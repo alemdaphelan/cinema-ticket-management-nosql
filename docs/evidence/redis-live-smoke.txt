@@ -1,0 +1,11 @@
++----------------+------------------------+
+| Check          | Result                 |
++----------------+------------------------+
+| Cache miss     | 105.36 ms              |
+| Cache hit      | 0.99 ms                |
+| TTL            | expired after 1 second |
+| Single seat    | exclusive              |
+| Multi seat Lua | atomic                 |
+| Leaderboard    | sorted descending      |
++----------------+------------------------+
+Redis phase 3 smoke tests passed.

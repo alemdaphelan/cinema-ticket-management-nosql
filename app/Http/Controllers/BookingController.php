@@ -548,10 +548,15 @@ class BookingController extends Controller
     /**
      * Chi tiết đơn hàng.
      */
-    public function orderDetail(int $orderId)
+    public function orderDetail(Request $request, int $orderId): JsonResponse
     {
-        $order = Order::with(['show.movie', 'show.room', 'seats.seat', 'snacks.snack', 'voucher'])
-            ->findOrFail($orderId);
+        $query = Order::with(['show.movie', 'show.room', 'seats.seat', 'snacks.snack', 'voucher']);
+
+        if (! in_array($request->user()->role, ['staff', 'admin'], true)) {
+            $query->where('user_id', $request->user()->id);
+        }
+
+        $order = $query->findOrFail($orderId);
 
         return response()->json(['data' => $order]);
     }

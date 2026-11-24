@@ -1,15 +1,22 @@
 # Nghiệm thu giai đoạn 7
 
-Ngày nghiệm thu: 18/11/2026 (Asia/Bangkok)
+Ngày tái nghiệm thu: 25/11/2026 (Asia/Bangkok)
 
 ## Kết quả tổng
 
-- PHPUnit: 53/53 test đạt, 462 assertion.
+- PHPUnit: 70/70 test đạt, 679 assertions trên SQLite in-memory và driver NoSQL array. Kết quả live bên dưới chạy riêng trên bốn dịch vụ Docker thật.
 - Outbox: một `event_id` dùng xuyên suốt publish/replay; ghi idempotent; retry 4 lần với backoff 5/30/120/300 giây.
-- Fallback: API MySQL chính vẫn HTTP 200 khi lần lượt dừng Redis, MongoDB, Cassandra API và Neo4j; thanh toán không rollback vì lỗi NoSQL.
+- Fallback live: API `/api/shows?date=...` vẫn HTTP 200 khi lần lượt dừng Redis, MongoDB, Cassandra API và Neo4j; header MISS/BYPASS xác nhận đọc MySQL thay vì cache đã có. Thanh toán khi NoSQL lỗi được kiểm tra tự động với SQLite và queue giả lập, chưa phải thanh toán end-to-end live.
 - Đồng thời giữ ghế: 2 yêu cầu tranh chấp, đúng 1 yêu cầu thắng bằng `SET NX EX`.
 - Backup/restore: MongoDB, Redis, Cassandra và Neo4j đều khôi phục probe và đối chiếu thành công.
-- GUI: đã xác nhận dữ liệu thật bằng Compass, RedisInsight, TablePlus và Neo4j Desktop.
+- Redis live: cache MISS/HIT, TTL, SET NX EX, Lua nhiều ghế và ZSET đều đạt; namespace ngẫu nhiên bảo vệ leaderboard đang dùng.
+- GUI: các ảnh Compass, RedisInsight, TablePlus và Neo4j Desktop là minh chứng lần trước; lượt 25/11 kiểm tra bằng CLI/API, chưa chụp lại GUI.
+
+## Phạm vi và giới hạn
+
+MySQL trong stack Docker hiện có 0 phim, 0 suất chiếu và 0 đơn hàng. Benchmark tự tạo rồi xóa đúng một phim probe khi cần; các kiểm tra chức năng tự động sử dụng dữ liệu riêng trong SQLite. Cần chuẩn bị dữ liệu mẫu trước khi demo toàn bộ luồng đặt vé trên trình duyệt. Các kết quả dưới đây xác nhận dịch vụ, truy vấn, tính nguyên tử, chịu lỗi và khôi phục probe; không thay thế nghiệm thu thủ công giao diện với dữ liệu demo đầy đủ.
+
+Trong quá trình tái nghiệm thu đã đồng bộ các dependency còn thiếu trong volume `vendor` theo `composer.lock`, bổ sung kiểm tra mã thoát của bước setup, bỏ build lại Cassandra API mặc định và sửa truy vấn minh chứng Cassandra về UTC. Các dịch vụ đã được bật lại sau phép thử chịu lỗi.
 
 ## Danh sách truy vấn/nghiệm thu chính
 
@@ -17,7 +24,7 @@ Ngày nghiệm thu: 18/11/2026 (Asia/Bangkok)
 |---|---|---|---|---|
 | Q-R1 | Redis | `GET/SETEX` qua `RedisQueryCache` | HIT/MISS/TTL đúng, lỗi Redis trả BYPASS | `phase7-tests.txt`, `phase7-resilience.txt` |
 | Q-R2 | Redis | `SET key owner NX EX ttl` | 2 yêu cầu chỉ 1 thắng | `phase7-concurrency.txt` |
-| Q-R3 | Redis | ZSET leaderboard theo ngày | Xếp hạng giảm dần, TTL hợp lệ | `RedisPhaseThreeTest` |
+| Q-R3 | Redis | ZSET leaderboard theo ngày | Xếp hạng giảm dần, TTL hợp lệ | `redis-live-smoke.txt`, `RedisPhaseThreeTest` |
 | Q-M1 | MongoDB | aggregate review theo `movie_id/status` | Điểm trung bình và số lượng đúng | `mongodb-phase7-compass.png` |
 | Q-M2 | MongoDB | outbox theo `published_at/occurred_at` | Replay không nhân đôi projection | `PhaseSevenAcceptanceTest` |
 | Q-C1 | Cassandra | partition `user_id + activity_month` | Không `ALLOW FILTERING`, LOCAL_QUORUM | `cassandra-phase5-cqlsh.txt` |
@@ -29,14 +36,14 @@ Ngày nghiệm thu: 18/11/2026 (Asia/Bangkok)
 
 | Đường đọc | Trung bình (ms) |
 |---|---:|
-| MySQL cold + ghi cache | 714.833 |
-| MySQL không cache | 1.708 |
-| Redis cache hit | 1.243 |
-| MongoDB review summary | 89.387 |
-| Cassandra health | 111.820 |
-| Neo4j similar movies | 37.917 |
+| MySQL cold + ghi cache | 3.696 |
+| MySQL không cache | 0.589 |
+| Redis cache hit | 0.744 |
+| MongoDB review summary | 2.006 |
+| Cassandra health | 5.374 |
+| Neo4j similar movies | 10.167 |
 
-Kết luận trung thực: trong 30 vòng đo trên dữ liệu demo, Redis cache hit nhanh hơn MySQL không cache khoảng 1,37 lần. Đây chỉ là kết quả tham khảo của môi trường hiện tại; Redis vẫn được đánh giá thêm qua correctness, TTL, giảm tải truy vấn lặp và primitive nguyên tử giữ ghế, không dùng số đo này để suy diễn hiệu năng production.
+Trong 30 vòng đo này, Redis cache hit 0,744 ms chậm hơn truy vấn MySQL không cache 0,589 ms. MySQL không có dữ liệu nghiệp vụ, MongoDB/Neo4j cũng không có lịch sử đầy đủ tương ứng với phim probe, nên các số đo chỉ phản ánh độ trễ đường truy vấn trên môi trường này. Không dùng chúng để kết luận hiệu năng production hoặc chất lượng gợi ý; Redis vẫn đạt kiểm tra cache, TTL và giữ ghế nguyên tử.
 
 ## Lệnh tái nghiệm thu
 

@@ -1,5 +1,5 @@
 ﻿NEO4J PHASE 6 VERIFICATION
-Generated: 2026-11-18T18:57:52
+Generated: 2026-11-25T06:36:05
 
 CONSTRAINTS
 name, type, labelsOrTypes, properties
@@ -40,7 +40,7 @@ Statement: "READ_ONLY"
 Version: "5"
 Planner: "COST"
 Runtime: "SLOTTED"
-Time: 126
+Time: 142
 DbHits: 19
 Rows: 1
 Memory (Bytes): 832
@@ -53,7 +53,7 @@ Statement: "READ_ONLY"
 Version: "5"
 Planner: "COST"
 Runtime: "SLOTTED"
-Time: 189
+Time: 173
 DbHits: 50
 Rows: 1
 Memory (Bytes): 1416

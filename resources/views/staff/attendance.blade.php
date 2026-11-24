@@ -67,7 +67,7 @@
                         </button>
                         <button type="button" id="mode-btn-camera" onclick="switchAttendanceMode('camera_ai')"
                                 class="flex-1 py-2.5 px-4 rounded-lg text-sm font-bold transition-all cursor-pointer text-[var(--color-cinema-text-muted)] hover:text-cinema-text">
-                            Camera AI
+                            Camera AI (mô phỏng)
                         </button>
                     </div>
 
@@ -91,8 +91,8 @@
                     {{-- Camera AI Computer Vision Panel --}}
                     <div id="panel-camera" class="hidden space-y-4">
                         <div class="rounded-xl p-3.5 bg-purple-500/10 border border-purple-500/30 text-xs text-cinema-purple-text flex flex-wrap items-center justify-between gap-2">
-                            <span><strong>Computer Vision Face Attendance:</strong> Bật camera, đưa khuôn mặt vào khung nhận diện — hệ thống tự động xác thực và chấm công.</span>
-                            <span class="px-2 py-0.5 rounded bg-purple-500/20 font-bold" id="cv-status-pill">Sẵn sàng</span>
+                            <span><strong>Camera AI (mô phỏng):</strong> Chức năng minh họa chấm công bằng camera. Không nhận diện hoặc xác thực khuôn mặt; tỷ lệ tin cậy là số ngẫu nhiên để minh họa.</span>
+                            <span class="px-2 py-0.5 rounded bg-purple-500/20 font-bold" id="cv-status-pill">Mô phỏng sẵn sàng</span>
                         </div>
 
                         <div class="relative mx-auto max-w-md aspect-[4/3] rounded-2xl overflow-hidden bg-slate-950 border-2 border-[var(--color-cinema-border)] flex items-center justify-center">
@@ -102,7 +102,7 @@
                             <div id="cv-placeholder" class="text-center p-6 space-y-2 flex flex-col items-center">
                                 <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>
                                 <p class="text-sm font-semibold text-white">Camera chưa bật</p>
-                                <p class="text-xs text-slate-400">Nhấn «Bật Camera» hoặc bấm nút nhận diện để dùng chế độ mô phỏng Camera AI.</p>
+                                <p class="text-xs text-slate-400">Nhấn «Bật Camera» hoặc bấm nút mô phỏng để minh họa chấm công.</p>
                             </div>
 
                             {{-- Face Scan HUD Overlay --}}
@@ -111,8 +111,8 @@
                                     <div class="cv-scan-line absolute left-0 right-0 h-0.5 bg-emerald-400 shadow-[0_0_12px_#34d399]"></div>
                                 </div>
                                 <div class="absolute bottom-3 left-3 right-3 px-3 py-1.5 rounded-lg bg-black/75 text-emerald-300 text-xs font-mono flex items-center justify-between">
-                                    <span id="cv-hud-text">AI Vision: Đang căn chỉnh khuôn mặt...</span>
-                                    <span id="cv-confidence-badge">98.5%</span>
+                                    <span id="cv-hud-text">Khung camera minh họa</span>
+                                    <span id="cv-confidence-badge">Tin cậy mô phỏng</span>
                                 </div>
                             </div>
                         </div>
@@ -128,11 +128,11 @@
                             </button>
                             <button type="button" id="cv-checkin-btn" onclick="runCameraAiAttendance('check_in')"
                                     class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white cursor-pointer">
-                                Nhận diện &amp; Bắt đầu ca
+                                Mô phỏng &amp; Bắt đầu ca
                             </button>
                             <button type="button" id="cv-checkout-btn" onclick="runCameraAiAttendance('check_out')"
                                     class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-sky-600 hover:bg-sky-700 disabled:opacity-40 text-white cursor-pointer">
-                                Nhận diện &amp; Kết thúc ca
+                                Mô phỏng &amp; Kết thúc ca
                             </button>
                         </div>
                     </div>
@@ -416,8 +416,8 @@
                 hud.classList.remove('hidden');
                 document.getElementById('btn-start-cam').classList.add('hidden');
                 document.getElementById('btn-stop-cam').classList.remove('hidden');
-                statusPill.textContent = 'Camera đang hoạt động';
-                document.getElementById('cv-hud-text').textContent = 'AI Vision: Đã phát hiện khuôn mặt hợp lệ';
+                statusPill.textContent = 'Camera minh họa đang hoạt động';
+                document.getElementById('cv-hud-text').textContent = 'Hình ảnh xem trước, không xác thực khuôn mặt';
                 return true;
             } catch (err) {
                 // Fallback giả lập khung hình Camera AI khi không có webcam vật lý
@@ -427,7 +427,7 @@
                 placeholder.classList.add('hidden');
                 hud.classList.remove('hidden');
                 statusPill.textContent = 'Chế độ mô phỏng Camera AI';
-                document.getElementById('cv-hud-text').textContent = 'AI Vision · Khung nhận diện khuôn mặt sẵn sàng';
+                document.getElementById('cv-hud-text').textContent = 'Khung camera minh họa';
                 return false;
             }
         }
@@ -460,7 +460,7 @@
             ctx.fillStyle = '#a7f3d0';
             ctx.font = 'bold 14px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText('COMPUTER VISION FACE CAPTURE', 240, 32);
+            ctx.fillText('CAMERA AI SIMULATION', 240, 32);
         }
 
         function stopWebcam() {
@@ -498,9 +498,9 @@
             }
 
             const confidence = Number((97.4 + Math.random() * 2.3).toFixed(2));
-            statusPill.textContent = 'Đang quét khuôn mặt...';
-            hudText.textContent = 'AI Vision: Đang trích xuất đặc trưng khuôn mặt...';
-            confBadge.textContent = `${confidence}%`;
+            statusPill.textContent = 'Đang chạy mô phỏng...';
+            hudText.textContent = 'Đang minh họa thao tác chấm công';
+            confBadge.textContent = `${confidence}% (mô phỏng)`;
 
             await new Promise(resolve => setTimeout(resolve, 1400));
 
@@ -512,8 +512,8 @@
                 canvas.classList.remove('hidden');
             }
 
-            hudText.textContent = `Đã xác thực khuôn mặt · ${confidence}%`;
-            statusPill.textContent = `Đã nhận diện · ${confidence}%`;
+            hudText.textContent = 'Hoàn tất mô phỏng, không xác thực khuôn mặt';
+            statusPill.textContent = 'Đã hoàn tất mô phỏng';
 
             stopWebcam();
             canvas.classList.remove('hidden');

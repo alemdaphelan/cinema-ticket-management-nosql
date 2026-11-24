@@ -1,5 +1,5 @@
 ﻿CASSANDRA PHASE 5 VERIFICATION
-Generated: 2026-11-18T18:57:06
+Generated: 2026-11-25T06:37:11
 Queries below use full partition keys and contain no ALLOW FILTERING.
 
 KEYSPACE REPLICATION
@@ -25,11 +25,11 @@ Consistency level set to LOCAL_QUORUM.
 
  event_type   | occurred_at
 --------------+---------------------------------
+ PHASE5_SMOKE | 2026-11-24 23:36:57.000000+0000
+ PHASE5_SMOKE | 2026-11-24 23:35:22.000000+0000
+ PHASE5_SMOKE | 2026-11-24 23:30:46.000000+0000
  PHASE5_SMOKE | 2026-11-18 11:56:52.000000+0000
  PHASE5_SMOKE | 2026-11-18 10:56:53.000000+0000
- PHASE5_SMOKE | 2026-11-18 05:42:45.000000+0000
- PHASE5_SMOKE | 2026-11-18 05:39:11.000000+0000
- PHASE5_SMOKE | 2026-11-17 16:22:51.000000+0000
 
 (5 rows)
 
@@ -38,17 +38,16 @@ Consistency level set to LOCAL_QUORUM.
 
  event_type   | occurred_at
 --------------+---------------------------------
- PHASE5_SMOKE | 2026-11-18 11:56:52.000000+0000
- PHASE5_SMOKE | 2026-11-18 10:56:53.000000+0000
- PHASE5_SMOKE | 2026-11-18 05:42:45.000000+0000
- PHASE5_SMOKE | 2026-11-18 05:39:11.000000+0000
+ PHASE5_SMOKE | 2026-11-24 23:36:57.000000+0000
+ PHASE5_SMOKE | 2026-11-24 23:35:22.000000+0000
+ PHASE5_SMOKE | 2026-11-24 23:30:46.000000+0000
 
-(4 rows)
+(3 rows)
 
 LOGICAL BACKUP/RESTORE PROBE
 
  probe_id                             | value
 --------------------------------------+-------------------
- 403e75b7-07f6-4dd4-aa71-6bf78ec628d1 | backup-restore-ok
+ f02a6e53-c6c3-4916-9a30-6d76680efcf3 | backup-restore-ok
 
 (1 rows)

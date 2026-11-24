@@ -42,7 +42,10 @@ class ReviewController extends Controller
         })->values();
 
         return response()->json([
-            'summary' => $this->summaryPayload($summary),
+            'summary' => [
+                ...$this->summaryPayload($summary),
+                'top_tags' => $this->reviews->topTags($movieId, (int) $summary['total_reviews']),
+            ],
             'data' => $items,
             'current_page' => $paginator['current_page'],
             'last_page' => $paginator['last_page'],
@@ -186,13 +189,6 @@ class ReviewController extends Controller
                 'stars_5_6' => ['count' => $summary['count_5_6'], 'percentage' => $percentage('count_5_6')],
                 'stars_3_4' => ['count' => $summary['count_3_4'], 'percentage' => $percentage('count_3_4')],
                 'stars_1_2' => ['count' => $summary['count_1_2'], 'percentage' => $percentage('count_1_2')],
-            ],
-            'top_tags' => [
-                ['tag' => 'Diễn xuất đỉnh cao', 'percentage' => min(98, max(85, $satisfaction + 2))],
-                ['tag' => 'Kịch bản lôi cuốn', 'percentage' => min(96, max(82, $satisfaction - 1))],
-                ['tag' => 'Kỹ xảo mãn nhãn', 'percentage' => min(99, max(88, $satisfaction + 3))],
-                ['tag' => 'Âm thanh sống động', 'percentage' => min(97, max(80, $satisfaction))],
-                ['tag' => 'Cái kết ấn tượng', 'percentage' => min(95, max(75, $satisfaction - 4))],
             ],
         ];
     }

@@ -58,7 +58,6 @@ Route::get('/movies/{id}', function (int $id) {
 })->name('movie.detail');
 
 Route::post('/movies/{id}/reviews', [App\Http\Controllers\ReviewController::class, 'store'])->name('movie.review.submit');
-Route::post('/api/movies/{id}/reviews', [App\Http\Controllers\ReviewController::class, 'store']);
 
 // === Lịch chiếu ===
 Route::get('/schedule', function () {

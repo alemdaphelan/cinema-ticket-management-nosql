@@ -501,7 +501,7 @@ class AdminStaffController extends Controller
     private function methodLabel(?string $method): string
     {
         return match ($method) {
-            'camera_ai' => 'Camera AI',
+            'camera_ai' => 'Camera AI (mô phỏng)',
             'manual' => 'Thủ công',
             default => '—',
         };

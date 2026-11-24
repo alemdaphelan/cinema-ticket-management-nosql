@@ -15,8 +15,6 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StaffWorkspaceController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Middleware\RoleMiddleware;
-use App\Models\Movie;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -37,31 +35,6 @@ Route::prefix('auth')->group(function () {
 });
 
 // === Public (không cần login) ===
-Route::get('/test-db', function () {
-    $times = [];
-
-    $times['bootstrap'] = defined('LARAVEL_START') ? microtime(true) - LARAVEL_START : 0;
-
-    $start = microtime(true);
-    DB::connection()->getPdo();
-    $times['connect'] = microtime(true) - $start;
-
-    $start = microtime(true);
-    $count = Movie::count();
-    $times['count'] = microtime(true) - $start;
-
-    $start = microtime(true);
-    $movies = Movie::query()->whereIn('status', ['showing', 'coming_soon'])->orderBy('created_at', 'desc')->paginate(12);
-    $times['paginate'] = microtime(true) - $start;
-
-    $start = microtime(true);
-    $json = json_encode($movies);
-    $times['json'] = microtime(true) - $start;
-
-    $times['total_php'] = defined('LARAVEL_START') ? microtime(true) - LARAVEL_START : 0;
-
-    return response()->json(['times' => $times, 'count' => $count]);
-});
 Route::get('/movies', [MovieController::class, 'publicIndex']);
 Route::get('/movies/leaderboard', MovieLeaderboardController::class);
 Route::get('/movies/{id}', [MovieController::class, 'publicShow']);

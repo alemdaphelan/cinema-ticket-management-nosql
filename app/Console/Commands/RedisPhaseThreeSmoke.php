@@ -22,10 +22,15 @@ class RedisPhaseThreeSmoke extends Command
         RedisMovieLeaderboard $leaderboard,
     ): int {
         config()->set([
+            // Keep every smoke key, including leaderboard DEL operations, isolated.
+            'database.redis.options.prefix' => 'nosql:smoke:'.bin2hex(random_bytes(8)).':',
             'nosql.redis.cache_store' => 'redis',
             'nosql.redis.seat_hold_store' => 'redis',
             'nosql.redis.leaderboard_store' => 'redis',
         ]);
+
+        Redis::purge((string) config('nosql.redis.connection', 'default'));
+        Redis::purge((string) config('cache.stores.redis.connection', 'cache'));
 
         $redis = Redis::connection((string) config('nosql.redis.connection', 'default'));
         $this->assertSame('PONG', strtoupper((string) $redis->command('ping')), 'Redis PING failed');

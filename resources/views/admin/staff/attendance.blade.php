@@ -244,7 +244,7 @@
         function methodBadge(method, conf) {
             if (!method) return '';
             if (method === 'camera_ai') {
-                return `<span class="inline-block mt-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-cinema-purple-text text-[10px] font-semibold">Camera AI${conf ? ` · ${conf}%` : ''}</span>`;
+                return `<span class="inline-block mt-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-cinema-purple-text text-[10px] font-semibold">Camera AI (mô phỏng)${conf ? ` · ${conf}% (mô phỏng)` : ''}</span>`;
             }
             return `<span class="inline-block mt-1 px-1.5 py-0.5 rounded bg-sky-500/15 text-cinema-info-text text-[10px] font-semibold">Thủ công</span>`;
         }
